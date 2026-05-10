@@ -4,7 +4,9 @@
       "Bash(npm -v)",
       "Bash(ng version *)",
       "Bash(npx @angular/cli version)",
-      "Bash(npx @angular/cli new jarvis-ui --routing=false --style=scss --standalone --skip-git --skip-install)"
+      "Bash(npx @angular/cli new jarvis-ui --routing=false --style=scss --standalone --skip-git --skip-install)",
+      "Bash(git commit *)",
+      "Bash(git push *)"
     ]
   }
 }
