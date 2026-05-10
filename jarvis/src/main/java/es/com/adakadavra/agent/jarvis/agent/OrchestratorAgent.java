@@ -1,10 +1,11 @@
 package es.com.adakadavra.agent.jarvis.agent;
 
+import es.com.adakadavra.agent.jarvis.config.ChatClientFactory;
+import es.com.adakadavra.agent.jarvis.model.AgentRequest;
 import es.com.adakadavra.agent.jarvis.model.AgentResponse;
 import es.com.adakadavra.agent.jarvis.model.AgentType;
+import es.com.adakadavra.agent.jarvis.model.ModelProvider;
 import es.com.adakadavra.agent.jarvis.model.RoutingDecision;
-import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 
@@ -30,33 +31,35 @@ public class OrchestratorAgent {
             Responde únicamente con el JSON que representa tu decisión de enrutamiento.
             """;
 
-    private final ChatClient orchestratorClient;
+    private final ChatClientFactory chatClientFactory;
     private final Map<AgentType, Agent> agents;
 
-    public OrchestratorAgent(
-            @Qualifier("orchestratorClient") ChatClient orchestratorClient,
-            List<Agent> agentList) {
-        this.orchestratorClient = orchestratorClient;
+    public OrchestratorAgent(ChatClientFactory chatClientFactory, List<Agent> agentList) {
+        this.chatClientFactory = chatClientFactory;
         this.agents = agentList.stream().collect(Collectors.toMap(Agent::type, Function.identity()));
     }
 
-    public AgentResponse process(String request, String conversationId) {
-        String cid = conversationId != null ? conversationId : UUID.randomUUID().toString();
-        RoutingDecision decision = route(request);
-        String response = agents.get(decision.agentType()).process(request, cid);
-        return new AgentResponse(decision.agentType(), decision.reasoning(), response);
+    public AgentResponse process(AgentRequest request) {
+        String cid = request.conversationId() != null ? request.conversationId() : UUID.randomUUID().toString();
+        ModelProvider provider = request.provider();
+        RoutingDecision decision = route(request.message(), provider);
+        String response = agents.get(decision.agentType()).process(request.message(), cid, provider);
+        ModelProvider resolved = provider != null ? provider : chatClientFactory.defaultProvider();
+        return new AgentResponse(decision.agentType(), decision.reasoning(), response, resolved);
     }
 
-    public Flux<String> stream(String request, String conversationId) {
-        String cid = conversationId != null ? conversationId : UUID.randomUUID().toString();
-        RoutingDecision decision = route(request);
-        return agents.get(decision.agentType()).stream(request, cid);
+    public Flux<String> stream(AgentRequest request) {
+        String cid = request.conversationId() != null ? request.conversationId() : UUID.randomUUID().toString();
+        ModelProvider provider = request.provider();
+        RoutingDecision decision = route(request.message(), provider);
+        return agents.get(decision.agentType()).stream(request.message(), cid, provider);
     }
 
-    private RoutingDecision route(String request) {
-        return orchestratorClient.prompt()
+    private RoutingDecision route(String message, ModelProvider provider) {
+        return chatClientFactory.orchestratorClient(provider)
+                .prompt()
                 .system(ROUTING_PROMPT)
-                .user(request)
+                .user(message)
                 .call()
                 .entity(RoutingDecision.class);
     }

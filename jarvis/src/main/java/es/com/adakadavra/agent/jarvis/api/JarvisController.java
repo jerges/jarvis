@@ -22,11 +22,11 @@ public class JarvisController {
 
     @PostMapping("/chat")
     public AgentResponse chat(@RequestBody AgentRequest request) {
-        return orchestrator.process(request.message(), request.conversationId());
+        return orchestrator.process(request);
     }
 
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> stream(@RequestBody AgentRequest request) {
-        return orchestrator.stream(request.message(), request.conversationId());
+        return orchestrator.stream(request);
     }
 }

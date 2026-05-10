@@ -1,0 +1,32 @@
+# Copia como terraform.tfvars y rellena los valores reales
+# cp terraform.tfvars.example terraform.tfvars
+
+# ── Azure ──────────────────────────────────────────────────────────────────────
+location            = "westeurope"
+resource_group_name = "jarvis-rg"
+vm_size             = "Standard_B1ms"   # 2 GB RAM, ~$15/mes
+admin_username      = "azureuser"
+ssh_public_key_path = "~/.ssh/id_rsa.pub"
+ssh_allowed_cidr    = "0.0.0.0/0"       # Pon tu IP: "1.2.3.4/32" para mayor seguridad
+
+# ── Repositorio ────────────────────────────────────────────────────────────────
+repo_url = "https://github.com/tu-usuario/jarvis.git"
+
+# ── AI Providers ───────────────────────────────────────────────────────────────
+anthropic_api_key       = "sk-ant-your-key-here"
+jarvis_default_provider = "ANTHROPIC"   # ANTHROPIC | AZURE
+
+# ── Azure AI Foundry (opcional — deja vacío si usas solo Anthropic) ────────────
+azure_openai_api_key          = ""
+azure_openai_endpoint         = ""     # ej: https://mi-recurso.openai.azure.com/
+azure_orchestrator_deployment = "gpt-4o"
+azure_agent_deployment        = "gpt-4o-mini"
+
+# ── Telegram (opcional — deja vacío si no usas) ────────────────────────────────
+telegram_bot_token      = ""
+telegram_webhook_secret = ""
+
+# ── WhatsApp (opcional — deja vacío si no usas) ────────────────────────────────
+whatsapp_access_token    = ""
+whatsapp_phone_number_id = ""
+whatsapp_verify_token    = ""

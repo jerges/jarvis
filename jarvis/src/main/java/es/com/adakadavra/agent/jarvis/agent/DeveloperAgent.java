@@ -1,12 +1,13 @@
 package es.com.adakadavra.agent.jarvis.agent;
 
+import es.com.adakadavra.agent.jarvis.config.ChatClientFactory;
 import es.com.adakadavra.agent.jarvis.model.AgentType;
+import es.com.adakadavra.agent.jarvis.model.ModelProvider;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 
@@ -28,15 +29,15 @@ public class DeveloperAgent implements Agent {
             Proporciona soluciones de código limpias, eficientes y bien explicadas.
             """;
 
-    private final ChatClient chatClient;
+    private final ChatClientFactory chatClientFactory;
     private final ChatMemory chatMemory;
     private final List<ToolCallbackProvider> mcpTools;
 
     public DeveloperAgent(
-            @Qualifier("agentClient") ChatClient chatClient,
+            ChatClientFactory chatClientFactory,
             ChatMemory chatMemory,
             @Autowired(required = false) List<ToolCallbackProvider> mcpTools) {
-        this.chatClient = chatClient;
+        this.chatClientFactory = chatClientFactory;
         this.chatMemory = chatMemory;
         this.mcpTools = mcpTools != null ? mcpTools : List.of();
     }
@@ -47,17 +48,18 @@ public class DeveloperAgent implements Agent {
     }
 
     @Override
-    public String process(String request, String conversationId) {
-        return basePrompt(request, conversationId).call().content();
+    public String process(String request, String conversationId, ModelProvider provider) {
+        return basePrompt(request, conversationId, provider).call().content();
     }
 
     @Override
-    public Flux<String> stream(String request, String conversationId) {
-        return basePrompt(request, conversationId).stream().content();
+    public Flux<String> stream(String request, String conversationId, ModelProvider provider) {
+        return basePrompt(request, conversationId, provider).stream().content();
     }
 
-    private ChatClient.ChatClientRequestSpec basePrompt(String request, String conversationId) {
-        var prompt = chatClient.prompt()
+    private ChatClient.ChatClientRequestSpec basePrompt(String request, String conversationId, ModelProvider provider) {
+        var prompt = chatClientFactory.agentClient(provider)
+                .prompt()
                 .system(SYSTEM_PROMPT)
                 .user(request)
                 .advisors(new MessageChatMemoryAdvisor(chatMemory, conversationId, 20));

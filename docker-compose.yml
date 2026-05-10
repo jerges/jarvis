@@ -1,0 +1,53 @@
+services:
+
+  # ── Backend (Spring Boot) ────────────────────────────────────────────────────
+  jarvis:
+    build:
+      context: ./jarvis
+      dockerfile: Dockerfile
+    container_name: jarvis-backend
+    environment:
+      # AI Providers
+      ANTHROPIC_API_KEY:            ${ANTHROPIC_API_KEY}
+      AZURE_OPENAI_API_KEY:         ${AZURE_OPENAI_API_KEY:-}
+      AZURE_OPENAI_ENDPOINT:        ${AZURE_OPENAI_ENDPOINT:-}
+      AZURE_ORCHESTRATOR_DEPLOYMENT: ${AZURE_ORCHESTRATOR_DEPLOYMENT:-gpt-4o}
+      AZURE_AGENT_DEPLOYMENT:       ${AZURE_AGENT_DEPLOYMENT:-gpt-4o-mini}
+      JARVIS_DEFAULT_PROVIDER:      ${JARVIS_DEFAULT_PROVIDER:-ANTHROPIC}
+      # Telegram
+      TELEGRAM_BOT_TOKEN:           ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_WEBHOOK_SECRET:      ${TELEGRAM_WEBHOOK_SECRET:-}
+      # WhatsApp
+      WHATSAPP_ACCESS_TOKEN:        ${WHATSAPP_ACCESS_TOKEN:-}
+      WHATSAPP_PHONE_NUMBER_ID:     ${WHATSAPP_PHONE_NUMBER_ID:-}
+      WHATSAPP_VERIFY_TOKEN:        ${WHATSAPP_VERIFY_TOKEN:-}
+    expose:
+      - "8080"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q UP || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s   # Spring Boot tarda más en arrancar en t3.micro
+    networks:
+      - jarvis-net
+
+  # ── Frontend (Angular → nginx) ───────────────────────────────────────────────
+  jarvis-ui:
+    build:
+      context: ./jarvis-ui
+      dockerfile: Dockerfile
+    container_name: jarvis-ui
+    ports:
+      - "80:80"
+    depends_on:
+      jarvis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - jarvis-net
+
+networks:
+  jarvis-net:
+    driver: bridge
