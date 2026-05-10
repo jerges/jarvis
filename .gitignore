@@ -20,3 +20,16 @@ jarvis-ui/.angular/
 .env
 *.env
 application-local.properties
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+infra/**/.terraform.lock.hcl
+terraform.tfvars
+infra/aws/terraform.tfvars
+infra/azure/terraform.tfvars
+crash.log
+override.tf
+override.tf.json
