@@ -1,10 +1,11 @@
-# Jarvis UI — Frontend Angular
+# Jarvis UI — Frontend Angular 19
 
 Interfaz de pruebas para el agente personal Jarvis. Permite enviar peticiones al backend y visualizar en tiempo real qué agente las maneja y la respuesta.
 
 ## Requisitos
 
 - Node 18+
+- Angular CLI 19
 - Backend `jarvis` corriendo en `http://localhost:8080`
 
 ## Instalación

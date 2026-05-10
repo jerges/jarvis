@@ -1,6 +1,6 @@
 # Jarvis — Agente Personal Multi-Modelo
 
-Sistema de agentes inteligentes construido con **Java 21**, **Spring Boot** y **Spring AI**. Un agente orquestador analiza cada petición y la enruta automáticamente al agente especializado más adecuado.
+Sistema de agentes inteligentes construido con **Java 21**, **Spring Boot 4** y **Spring AI**. Un agente orquestador analiza cada petición y la enruta automáticamente al agente especializado más adecuado.
 
 ## Arquitectura
 
@@ -9,12 +9,12 @@ POST /api/jarvis/chat  ──►  OrchestratorAgent (Claude Opus 4.7)
 POST /api/jarvis/stream      │
                              │  clasifica la petición
                              │
-                    ┌────────┴────────┐──────────────────┐
-                    │                 │                  │
-             SocialMediaAgent  DeveloperAgent      DevOpsAgent    FrontendAgent
-           (Sonnet 4.6)       (Sonnet 4.6)       (Sonnet 4.6)   (Sonnet 4.6)
-           WhatsApp, Telegram  Código, APIs        K8s, CI/CD     React, UI/UX
-           Redes sociales      Arquitectura        Cloud, IaC      Diseño web
+             ┌───────────────┼───────────────┬─────────────────┐
+             │               │               │                 │
+     SocialMediaAgent  DeveloperAgent   DevOpsAgent      FrontendAgent
+      (Sonnet 4.6)    (Sonnet 4.6)    (Sonnet 4.6)     (Sonnet 4.6)
+     WhatsApp/Telegram  Código/APIs    K8s/CI/CD         React/UI/UX
+     Redes sociales     Arquitectura   Cloud/IaC          Diseño web
 ```
 
 ### Componentes
@@ -26,19 +26,20 @@ POST /api/jarvis/stream      │
 | `DeveloperAgent` | Desarrollador senior: código, arquitectura, debugging |
 | `DevOpsAgent` | Infraestructura, Kubernetes, CI/CD, cloud |
 | `FrontendAgent` | Frontend y diseño: React, CSS, UI/UX, Figma |
-| `AgentConfig` | Define los `ChatClient` beans con modelos distintos por rol |
+| `AgentConfig` | Define los `ChatClient` beans: `orchestratorClient` (Opus 4.7) y `agentClient` compartido por todos los subagentes (Sonnet 4.6) |
 
 ### Funcionalidades
 
 - **Enrutamiento automático** — el orquestador clasifica la petición con output estructurado (`RoutingDecision`)
-- **Memoria por conversación** — `MessageChatMemoryAdvisor` con `InMemoryChatMemory`, mantiene las últimas 20 mensajes por `conversationId`
-- **Streaming SSE** — endpoint `/stream` emite tokens en tiempo real vía Server-Sent Events
-- **MCP tools** — soporte opcional para herramientas MCP; se inyectan automáticamente si hay servidores configurados
+- **Memoria por conversación** — `MessageChatMemoryAdvisor` con `InMemoryChatMemory`, mantiene los últimos 20 mensajes por `conversationId`
+- **Streaming SSE** — endpoint `/stream` emite tokens en tiempo real vía Server-Sent Events (sin metadatos de enrutamiento)
+- **MCP tools** — soporte para herramientas MCP client y server; los tools se inyectan automáticamente a los subagentes si hay servidores configurados
 
 ## Requisitos
 
 - Java 21+
-- Gradle 9+
+- Gradle 9+ (el proyecto incluye wrapper con Gradle 9.4.1)
+- Spring Boot 4.0.6 / Spring AI 2.0.0-M5
 - API key de Anthropic
 
 ## Configuración
@@ -57,7 +58,7 @@ spring.ai.anthropic.api-key=sk-ant-...
 
 ### MCP (opcional)
 
-Para conectar servidores MCP, descomenta y ajusta en `application.properties`:
+Para conectar servidores MCP externos (client), descomenta y ajusta en `application.properties`:
 
 ```properties
 spring.ai.mcp.client.transport=stdio
@@ -98,7 +99,7 @@ Respuesta completa con información de enrutamiento.
 
 ### `POST /api/jarvis/stream`
 
-Streaming de la respuesta en tiempo real (Server-Sent Events).
+Streaming de la respuesta en tiempo real (Server-Sent Events). Emite solo los tokens del agente seleccionado; no incluye `routedTo` ni `reasoning`.
 
 **Request:**
 ```json
