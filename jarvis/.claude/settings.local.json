@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm -v)",
+      "Bash(ng version *)",
+      "Bash(npx @angular/cli version)",
+      "Bash(npx @angular/cli new jarvis-ui --routing=false --style=scss --standalone --skip-git --skip-install)"
+    ]
+  }
+}

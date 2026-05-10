@@ -1,0 +1,22 @@
+# Java / Gradle
+.gradle/
+build/
+*.class
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+*.iws
+.vscode/
+
+# Angular
+jarvis-ui/node_modules/
+jarvis-ui/dist/
+jarvis-ui/.angular/
+
+# Env
+.env
+*.env
+application-local.properties

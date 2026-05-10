@@ -1,0 +1,106 @@
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <span class="logo">⚡ Jarvis</span>
+    </div>
+
+    <div class="sidebar-section">
+      <label class="section-label">Modo</label>
+      <div class="toggle-group">
+        <button class="toggle-btn" [class.active]="!streamMode" (click)="streamMode = false">Chat</button>
+        <button class="toggle-btn" [class.active]="streamMode" (click)="streamMode = true">Stream</button>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <label class="section-label">Conversation ID</label>
+      <span class="conv-id" title="{{ conversationId }}">{{ conversationId | slice:0:18 }}…</span>
+    </div>
+
+    <div class="sidebar-section agents">
+      <label class="section-label">Agentes</label>
+      @for (entry of agentMeta | keyvalue; track entry.key) {
+        <div class="agent-chip" [style.border-color]="entry.value.color">
+          <span class="agent-icon">{{ entry.value.icon }}</span>
+          <span class="agent-name">{{ entry.value.label }}</span>
+        </div>
+      }
+    </div>
+
+    <button class="new-chat-btn" (click)="newChat()">+ Nueva conversación</button>
+  </aside>
+
+  <!-- Main -->
+  <main class="chat-area">
+
+    <!-- Messages -->
+    <div class="messages">
+
+      @if (messages().length === 0) {
+        <div class="empty-state">
+          <span class="empty-icon">⚡</span>
+          <p>Haz una pregunta y Jarvis la enrutará al agente adecuado.</p>
+          <div class="hints">
+            <span class="hint" (click)="message = 'Cómo hago un deployment en Kubernetes con rolling update?'">⚙️ Kubernetes rolling update</span>
+            <span class="hint" (click)="message = 'Implementa un componente React con Tailwind para un formulario de login'">🎨 Componente React</span>
+            <span class="hint" (click)="message = 'Cómo configuro un bot de Telegram con webhooks?'">📱 Bot de Telegram</span>
+            <span class="hint" (click)="message = 'Explícame el patrón CQRS con un ejemplo en Java'">💻 CQRS en Java</span>
+          </div>
+        </div>
+      }
+
+      @for (msg of messages(); track $index) {
+        <div class="message" [class.user]="msg.role === 'user'" [class.assistant]="msg.role === 'assistant'">
+
+          @if (msg.role === 'assistant') {
+            <div class="message-meta">
+              @if (msg.routedTo) {
+                <span class="agent-badge" [style.background]="agentBadge(msg.routedTo).color">
+                  {{ agentBadge(msg.routedTo).icon }} {{ agentBadge(msg.routedTo).label }}
+                </span>
+              }
+              @if (!msg.routedTo && msg.streaming) {
+                <span class="agent-badge streaming-badge">⚡ Streaming...</span>
+              }
+              @if (msg.reasoning) {
+                <span class="reasoning" title="{{ msg.reasoning }}">
+                  💭 {{ msg.reasoning | slice:0:80 }}{{ msg.reasoning.length > 80 ? '…' : '' }}
+                </span>
+              }
+            </div>
+          }
+
+          <div class="bubble">
+            <span class="content" [class.cursor]="msg.streaming">{{ msg.content }}</span>
+          </div>
+
+        </div>
+      }
+
+      <div #messagesEnd></div>
+    </div>
+
+    <!-- Input -->
+    <div class="input-area">
+      <div class="input-box" [class.loading]="loading">
+        <textarea
+          [(ngModel)]="message"
+          (keydown)="onKeydown($event)"
+          placeholder="Escribe tu pregunta... (Enter para enviar, Shift+Enter para nueva línea)"
+          rows="1"
+          [disabled]="loading">
+        </textarea>
+        <button class="send-btn" (click)="send()" [disabled]="loading || !message.trim()" [style.background]="agentColor()">
+          @if (loading) { <span class="spinner"></span> } @else { ↑ }
+        </button>
+      </div>
+      <p class="input-hint">
+        Modo: <strong>{{ streamMode ? 'Stream (SSE)' : 'Chat (respuesta completa)' }}</strong>
+        · Endpoint: <code>{{ streamMode ? '/api/jarvis/stream' : '/api/jarvis/chat' }}</code>
+      </p>
+    </div>
+
+  </main>
+</div>
