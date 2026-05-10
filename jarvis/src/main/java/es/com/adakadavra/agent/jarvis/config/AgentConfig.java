@@ -1,10 +1,12 @@
 package es.com.adakadavra.agent.jarvis.config;
 
-import org.springframework.ai.anthropic.AnthropicChatOptions;
-import org.springframework.ai.chat.client.ChatClient;
+import es.com.adakadavra.agent.jarvis.model.ModelProvider;
+import org.springframework.ai.anthropic.AnthropicChatModel;
+import org.springframework.ai.azure.openai.AzureOpenAiChatModel;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.InMemoryChatMemory;
-import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -16,23 +18,19 @@ public class AgentConfig {
         return new InMemoryChatMemory();
     }
 
-    @Bean("orchestratorClient")
-    public ChatClient orchestratorClient(ChatModel chatModel) {
-        return ChatClient.builder(chatModel)
-                .defaultOptions(AnthropicChatOptions.builder()
-                        .model("claude-opus-4-7")
-                        .maxTokens(1024)
-                        .build())
-                .build();
-    }
+    @Bean
+    public ChatClientFactory chatClientFactory(
+            AnthropicChatModel anthropicChatModel,
+            @Autowired(required = false) AzureOpenAiChatModel azureChatModel,
+            @Value("${jarvis.ai.default-provider:ANTHROPIC}") String defaultProvider,
+            @Value("${jarvis.azure.orchestrator-deployment:gpt-4o}") String azureOrchestratorDeployment,
+            @Value("${jarvis.azure.agent-deployment:gpt-4o-mini}") String azureAgentDeployment) {
 
-    @Bean("agentClient")
-    public ChatClient agentClient(ChatModel chatModel) {
-        return ChatClient.builder(chatModel)
-                .defaultOptions(AnthropicChatOptions.builder()
-                        .model("claude-sonnet-4-6")
-                        .maxTokens(8096)
-                        .build())
-                .build();
+        return new ChatClientFactory(
+                anthropicChatModel,
+                azureChatModel,
+                ModelProvider.valueOf(defaultProvider.toUpperCase()),
+                azureOrchestratorDeployment,
+                azureAgentDeployment);
     }
 }
