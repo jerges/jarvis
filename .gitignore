@@ -9,6 +9,7 @@ target/
 *.iml
 *.iws
 .vscode/
+.claude/
 
 # Angular
 jarvis-ui/node_modules/
