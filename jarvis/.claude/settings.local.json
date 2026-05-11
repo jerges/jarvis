@@ -6,7 +6,14 @@
       "Bash(npx @angular/cli version)",
       "Bash(npx @angular/cli new jarvis-ui --routing=false --style=scss --standalone --skip-git --skip-install)",
       "Bash(git commit *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(mvn -version)",
+      "Bash(mvn -N wrapper:wrapper -Dmaven=3.9.15)",
+      "Bash(mvn -N wrapper:wrapper -Dmaven=3.9.15 -X)",
+      "Bash(cp /opt/homebrew/Cellar/maven/3.9.15/libexec/bin/mvn /Users/pw-jbello/developer/workspace/adakadavra/agent/jarvis/mvnw)",
+      "Bash(chmod +x /Users/pw-jbello/developer/workspace/adakadavra/agent/jarvis/mvnw)",
+      "Bash(mvn help:effective-pom -q)",
+      "Bash(/Users/pw-jbello/developer/workspace/adakadavra/agent/jarvis/mvnw --version)"
     ]
   }
 }

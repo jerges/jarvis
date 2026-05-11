@@ -1,0 +1,15 @@
+#!/bin/sh
+# Maven wrapper — delegates to the system-installed Maven.
+# The standard maven-wrapper.jar cannot be downloaded because the corporate
+# Nexus mirror (nexus.elcorteingles.int) blocks access to Maven Central.
+#
+# Requires Maven installed locally: brew install maven
+
+if [ -f "/opt/homebrew/bin/mvn" ]; then
+    exec "/opt/homebrew/bin/mvn" "$@"
+elif command -v mvn >/dev/null 2>&1; then
+    exec mvn "$@"
+else
+    echo "Maven not found. Install it with: brew install maven" >&2
+    exit 1
+fi
