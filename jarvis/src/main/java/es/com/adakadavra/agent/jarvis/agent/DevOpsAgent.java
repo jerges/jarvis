@@ -1,8 +1,9 @@
 package es.com.adakadavra.agent.jarvis.agent;
 
+import es.com.adakadavra.agent.jarvis.config.AgentPromptCatalog;
 import es.com.adakadavra.agent.jarvis.config.ChatClientFactory;
+import es.com.adakadavra.agent.jarvis.google.GoogleWorkspaceContextService;
 import es.com.adakadavra.agent.jarvis.model.AgentType;
-import es.com.adakadavra.agent.jarvis.model.ModelProvider;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,8 +17,10 @@ public class DevOpsAgent extends AbstractAgent {
     public DevOpsAgent(
             ChatClientFactory chatClientFactory,
             ChatMemory chatMemory,
-            @Autowired(required = false) List<ToolCallbackProvider> mcpTools) {
-        super(chatClientFactory, chatMemory, mcpTools);
+            @Autowired(required = false) List<ToolCallbackProvider> mcpTools,
+            AgentPromptCatalog promptCatalog,
+            @Autowired(required = false) GoogleWorkspaceContextService googleWorkspaceContextService) {
+        super(chatClientFactory, chatMemory, mcpTools, promptCatalog, googleWorkspaceContextService, AgentType.DEVOPS);
     }
 
     @Override

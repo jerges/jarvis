@@ -25,7 +25,9 @@ ADMIN_USER=$(grep -E '^admin_username' terraform.tfvars | awk -F'"' '{print $2}'
 if [[ -n "${SSH_KEY_PATH:-}" ]]; then
   KEY="$SSH_KEY_PATH"
 else
-  KEY=$(terraform output -raw ssh_command 2>/dev/null | grep -oP '(?<=-i )\S+' || echo "$HOME/.ssh/id_rsa")
+  SSH_COMMAND=$(terraform output -raw ssh_command 2>/dev/null || true)
+  KEY=$(echo "$SSH_COMMAND" | awk '{for (i = 1; i <= NF; i++) if ($i == "-i") { print $(i+1); exit }}')
+  KEY=${KEY:-$HOME/.ssh/id_rsa}
 fi
 
 info "Actualizando Jarvis en $PUBLIC_IP (usuario: $ADMIN_USER)..."

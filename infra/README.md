@@ -237,6 +237,7 @@ Edita `terraform.tfvars`:
 # ── Azure ──────────────────────────────────────────────────────────────────────
 location            = "westeurope"      # eastus, northeurope, etc.
 resource_group_name = "jarvis-rg"
+key_vault_name      = "jarvis-kv-<sufijo-unico>"  # debe ser globalmente único
 vm_size             = "Standard_B1ms"   # 1 vCPU / 2 GB RAM, ~$15/mes
 admin_username      = "azureuser"
 ssh_public_key_path = "~/.ssh/id_rsa.pub"
@@ -246,7 +247,7 @@ ssh_allowed_cidr    = "1.2.3.4/32"     # tu IP pública
 repo_url = "https://github.com/tu-usuario/jarvis.git"
 
 # ── Anthropic (obligatorio) ────────────────────────────────────────────────────
-anthropic_api_key       = "sk-ant-..."
+anthropic_api_key       = ""             # opcional: si está vacío, Terraform crea placeholder en Key Vault
 jarvis_default_provider = "ANTHROPIC"   # ANTHROPIC | AZURE
 
 # ── Azure AI Foundry (opcional) ────────────────────────────────────────────────
@@ -295,7 +296,23 @@ El script ejecuta:
 | Public IP | Static, SKU Standard |
 | NSG | Inbound: 22 (tu CIDR), 80/443 (Any). Outbound: todo |
 | Network Interface | NIC + asociación al NSG |
+| Key Vault | Contiene secretos de app (se crean placeholders iniciales) |
 | Linux VM | Ubuntu 24.04 LTS, disco Standard_LRS 30 GB |
+
+### Rellenar secretos en Key Vault (Portal)
+
+Tras el `terraform apply`, usa los outputs para abrir el vault correcto:
+
+```bash
+cd infra/azure
+terraform output key_vault_name
+terraform output key_vault_secret_names
+```
+
+Luego en Azure Portal:
+1. **Key Vaults** → tu vault
+2. **Objects** → **Secrets**
+3. Edita cada secreto con su valor real (los placeholders aparecen como `__PENDING_SET_IN_PORTAL__`)
 
 ---
 

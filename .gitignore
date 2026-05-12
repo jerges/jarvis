@@ -15,6 +15,12 @@ target/
 jarvis-ui/node_modules/
 jarvis-ui/dist/
 jarvis-ui/.angular/
+jarvis-ui/.vscode/
+jarvis-ui/.idea/
+jarvis-ui/.DS_Store
+jarvis-ui/.env
+jarvis-ui/package-lock.json
+jarvis-ui/yarn.lock
 
 # Env
 .env
@@ -28,8 +34,9 @@ application-local.properties
 *.tfstate.backup
 infra/**/.terraform.lock.hcl
 terraform.tfvars
-infra/aws/terraform.tfvars
-infra/azure/terraform.tfvars
+infra/**/*.tfvars
+**/tfplan
+tfplan
 crash.log
 override.tf
 override.tf.json

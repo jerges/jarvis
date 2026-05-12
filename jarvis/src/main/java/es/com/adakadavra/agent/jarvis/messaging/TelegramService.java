@@ -1,7 +1,7 @@
 package es.com.adakadavra.agent.jarvis.messaging;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import es.com.adakadavra.agent.jarvis.agent.OrchestratorAgent;
+import es.com.adakadavra.agent.jarvis.agent.DirectorAgent;
 import es.com.adakadavra.agent.jarvis.model.AgentRequest;
 import es.com.adakadavra.agent.jarvis.model.AgentResponse;
 import org.slf4j.Logger;
@@ -23,14 +23,14 @@ public class TelegramService {
     private static final Logger log = LoggerFactory.getLogger(TelegramService.class);
     private static final int MAX_TELEGRAM_MESSAGE_LENGTH = 4096;
 
-    private final OrchestratorAgent orchestrator;
+    private final DirectorAgent orchestrator;
     private final RestClient restClient;
 
     @Value("${jarvis.telegram.bot-token:}")
     private String botToken;
 
     public TelegramService(
-            OrchestratorAgent orchestrator,
+            DirectorAgent orchestrator,
             @Qualifier("telegramRestClient") RestClient restClient) {
         this.orchestrator = orchestrator;
         this.restClient = restClient;
@@ -49,19 +49,19 @@ public class TelegramService {
         if (text.startsWith("/start")) {
             sendMessage(chatId,
                     "¡Hola! Soy *Jarvis*, tu asistente personal con IA.\n\n" +
-                    "Puedo ayudarte con:\n" +
-                    "• 💻 Código y arquitectura de software\n" +
-                    "• ⚙️ DevOps, Kubernetes y cloud\n" +
-                    "• 📱 Redes sociales y mensajería\n" +
-                    "• 🎨 Frontend y diseño web\n\n" +
-                    "¡Escríbeme lo que necesites!");
+                            "Puedo ayudarte con:\n" +
+                            "• 💻 Código y arquitectura de software\n" +
+                            "• ⚙️ DevOps, Kubernetes y cloud\n" +
+                            "• 📱 Redes sociales y mensajería\n" +
+                            "• 🎨 Frontend y diseño web\n\n" +
+                            "¡Escríbeme lo que necesites!");
             return;
         }
 
         try {
             sendChatAction(chatId, "typing");
             AgentResponse response = orchestrator.process(
-                    new AgentRequest(text, "telegram-" + chatId, null));
+                    new AgentRequest(text, "telegram-" + chatId, null, null));
             sendMessage(chatId, response.response());
         } catch (Exception e) {
             log.error("Error processing Telegram message for chat {}", chatId, e);

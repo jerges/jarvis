@@ -1,0 +1,22 @@
+# terraform.tfvars — Azure AI Foundry para Jarvis
+# Copia como terraform.tfvars y ajusta si necesitas cambiar algún valor.
+# cp terraform.tfvars.example terraform.tfvars
+
+# ── Regiones ────────────────────────────────────────────────────────────────────
+location        = "westeurope"    # Hub, Storage, Key Vault, Resource Group
+openai_location = "swedencentral" # Azure OpenAI: mejor catálogo de modelos en EU
+                                   # Alternativa: "eastus" (mayor cuota global)
+
+# ── Resource Group ──────────────────────────────────────────────────────────────
+resource_group_name = "jarvis-foundry-rg"  # DISTINTO del de la VM (jarvis-rg)
+
+# ── AI Foundry ─────────────────────────────────────────────────────────────────
+hub_name     = "jarvis-foundry-hub"
+project_name = "jarvis-project"
+
+# ── Nombres de los deployments ─────────────────────────────────────────────────
+# Estos mismos nombres van en el .env de Jarvis:
+#   AZURE_ORCHESTRATOR_DEPLOYMENT y AZURE_AGENT_DEPLOYMENT
+orchestrator_deployment = "gpt-4o-mini"
+agent_deployment        = "gpt-35-turbo"
+

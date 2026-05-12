@@ -76,6 +76,33 @@ El proveedor puede cambiarse **por petición** con el campo `"provider"` en el J
 export ANTHROPIC_API_KEY=sk-ant-...
 ```
 
+### Anthropic local OAuth (Claude CLI, pruebas locales)
+
+Si quieres probar un flujo tipo OAuth en local (sin guardar manualmente la key), usa el helper para resolver el token:
+
+```bash
+chmod +x ./scripts/run-local-anthropic-oauth.sh
+export ANTHROPIC_API_KEY="$(CLAUDE_OAUTH_TOKEN_COMMAND='claude auth print-token' ./scripts/run-local-anthropic-oauth.sh)"
+```
+
+Después puedes arrancar Jarvis por tu cuenta con el comando que prefieras.
+
+También soporta:
+
+```bash
+# token ya exportado
+export ANTHROPIC_OAUTH_TOKEN=<token>
+export ANTHROPIC_API_KEY="$(./scripts/run-local-anthropic-oauth.sh)"
+
+# token en fichero
+export ANTHROPIC_OAUTH_TOKEN_FILE="$HOME/.config/claude/token"
+export ANTHROPIC_API_KEY="$(./scripts/run-local-anthropic-oauth.sh)"
+```
+
+> Nota: este flujo es para desarrollo local. En producción, usa secretos gestionados y rotación.
+
+> Importante: si `claude auth status` indica `authMethod: "claude.ai"`, esa sesión suele servir para Claude Code, pero no implica que exista un token/API key reutilizable para `Spring AI`. En ese caso tendrás que inyectar `ANTHROPIC_API_KEY` manualmente o usar un comando propio que te entregue un token real.
+
 ### Azure AI Foundry (opcional)
 
 1. Crea un recurso **Azure OpenAI Service** en el portal de Azure.
@@ -171,6 +198,28 @@ spring.ai.mcp.client.stdio.command=npx
 spring.ai.mcp.client.stdio.args=-y,@modelcontextprotocol/server-filesystem,/tmp
 ```
 
+### Google Drive + Gmail OAuth (opcional)
+
+1. Crea credenciales OAuth 2.0 en Google Cloud Console (tipo Web application).
+2. Añade como redirect URI:
+   - `http://localhost:8080/api/google/oauth/callback`
+3. Exporta variables:
+
+```bash
+export GOOGLE_OAUTH_CLIENT_ID=<google-client-id>
+export GOOGLE_OAUTH_CLIENT_SECRET=<google-client-secret>
+export GOOGLE_OAUTH_REDIRECT_URI=http://localhost:8080/api/google/oauth/callback
+export GOOGLE_OAUTH_SHARED_CONNECTION=true
+```
+
+Scopes por defecto:
+- Drive metadata readonly: `https://www.googleapis.com/auth/drive.metadata.readonly`
+- Gmail readonly: `https://www.googleapis.com/auth/gmail.readonly`
+
+Cuando una conversación está conectada, los agentes pueden usar contexto resumido de Drive/Gmail durante sus respuestas.
+
+`GOOGLE_OAUTH_SHARED_CONNECTION=true` (default) hace que la conexión OAuth se comparta en memoria entre todas las conversaciones.
+
 ## Ejecución
 
 ```bash
@@ -215,6 +264,24 @@ curl -X POST http://localhost:8080/api/jarvis/stream \
   -H "Content-Type: application/json" \
   -d '{"message": "cómo optimizo una query SQL lenta", "conversationId": "abc", "provider": "ANTHROPIC"}' \
   --no-buffer
+```
+
+### Google OAuth / Workspace endpoints
+
+```bash
+# 1) Obtener URL de autorización para una conversación
+curl "http://localhost:8080/api/google/oauth/url?conversationId=session-123"
+
+# 2) Abrir la URL devuelta, autorizar en Google y completar callback
+
+# 3) Ver estado de conexión
+curl "http://localhost:8080/api/google/status?conversationId=session-123"
+
+# 4) Consultar ficheros Drive
+curl "http://localhost:8080/api/google/drive/files?conversationId=session-123&limit=5"
+
+# 5) Consultar correos Gmail
+curl "http://localhost:8080/api/google/gmail/messages?conversationId=session-123&limit=5"
 ```
 
 ### Memoria de conversación

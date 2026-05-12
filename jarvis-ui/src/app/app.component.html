@@ -19,14 +19,63 @@
       <span class="conv-id" title="{{ conversationId }}">{{ conversationId | slice:0:18 }}…</span>
     </div>
 
+    <div class="sidebar-section">
+      <label class="section-label">Modelo ({{ backendModeLabel }})</label>
+      @if (lastRoutedAgent()) {
+        <span class="top-agent-chip" [style.border-color]="agentBadge(lastRoutedAgent()!).color">
+          🤖 Último agente: {{ agentBadge(lastRoutedAgent()!).label }}
+        </span>
+      }
+      <select class="model-select" [(ngModel)]="selectedModel">
+        @for (model of availableModels; track model) {
+          <option [value]="model">{{ model }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="sidebar-section">
+      <label class="section-label">Google Workspace</label>
+      <div class="google-connection" [class.connected]="googleConnected">
+        <span class="google-status-dot"></span>
+        <span>{{ googleStatusLabel }}</span>
+      </div>
+      <div class="google-actions">
+        <button
+          class="google-btn"
+          [class.connected]="googleConnected"
+          type="button"
+          (click)="connectGoogleWorkspace()">
+          {{ googleConnected ? 'Connected' : 'Connect Drive/Gmail' }}
+        </button>
+        <button class="google-btn secondary" type="button" (click)="refreshGoogleStatus()">Refresh</button>
+      </div>
+    </div>
+
     <div class="sidebar-section agents">
       <label class="section-label">Agentes</label>
-      @for (entry of agentMeta | keyvalue; track entry.key) {
-        <div class="agent-chip" [style.border-color]="entry.value.color">
-          <span class="agent-icon">{{ entry.value.icon }}</span>
-          <span class="agent-name">{{ entry.value.label }}</span>
+      <div class="org-chart">
+        <div class="org-node leader" [style.border-color]="agentMeta[directorAgent].color">
+          <div class="org-node-main">
+            <span class="org-icon">{{ agentMeta[directorAgent].icon }}</span>
+            <span class="org-name">{{ agentMeta[directorAgent].label }}</span>
+          </div>
+          <span class="org-tooltip">{{ agentMeta[directorAgent].skills }}</span>
         </div>
-      }
+
+        <div class="org-connector"></div>
+
+        <div class="org-team">
+          @for (agentType of subAgents; track agentType) {
+            <div class="org-node" [style.border-color]="agentMeta[agentType].color">
+              <div class="org-node-main">
+                <span class="org-icon">{{ agentMeta[agentType].icon }}</span>
+                <span class="org-name">{{ agentMeta[agentType].label }}</span>
+              </div>
+              <span class="org-tooltip">{{ agentMeta[agentType].skills }}</span>
+            </div>
+          }
+        </div>
+      </div>
     </div>
 
     <button class="new-chat-btn" (click)="newChat()">+ Nueva conversación</button>
@@ -69,6 +118,21 @@
                   💭 {{ msg.reasoning | slice:0:80 }}{{ msg.reasoning.length > 80 ? '…' : '' }}
                 </span>
               }
+               @if (msg.modelUsed) {
+                 <span class="model-chip" title="Modelo usado">
+                   🧠 {{ msg.modelUsed }}
+                 </span>
+               }
+               @if (msg.routedTo) {
+                 <span class="agent-used-chip" title="Agente usado">
+                   🤖 {{ agentBadge(msg.routedTo).label }}
+                 </span>
+               }
+               @if (msg.tokens) {
+                 <span class="tokens-chip" [title]="'Tokens - Input: ' + (msg.tokens.inputTokens || 0) + ' | Output: ' + (msg.tokens.outputTokens || 0) + ' | Total: ' + (msg.tokens.totalTokens || 0)">
+                   📊 {{ msg.tokens.totalTokens || 0 }} tokens
+                 </span>
+               }
             </div>
           }
 

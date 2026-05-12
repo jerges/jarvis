@@ -1,7 +1,7 @@
 package es.com.adakadavra.agent.jarvis.messaging;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import es.com.adakadavra.agent.jarvis.agent.OrchestratorAgent;
+import es.com.adakadavra.agent.jarvis.agent.DirectorAgent;
 import es.com.adakadavra.agent.jarvis.model.AgentRequest;
 import es.com.adakadavra.agent.jarvis.model.AgentResponse;
 import org.slf4j.Logger;
@@ -21,7 +21,7 @@ public class WhatsAppService {
     private static final Logger log = LoggerFactory.getLogger(WhatsAppService.class);
     private static final int MAX_WHATSAPP_MESSAGE_LENGTH = 4096;
 
-    private final OrchestratorAgent orchestrator;
+    private final DirectorAgent orchestrator;
     private final RestClient restClient;
 
     @Value("${jarvis.whatsapp.phone-number-id:}")
@@ -31,7 +31,7 @@ public class WhatsAppService {
     private String accessToken;
 
     public WhatsAppService(
-            OrchestratorAgent orchestrator,
+            DirectorAgent orchestrator,
             @Qualifier("whatsappRestClient") RestClient restClient) {
         this.orchestrator = orchestrator;
         this.restClient = restClient;
@@ -64,7 +64,7 @@ public class WhatsAppService {
 
         try {
             AgentResponse response = orchestrator.process(
-                    new AgentRequest(text, "whatsapp-" + from, null));
+                    new AgentRequest(text, "whatsapp-" + from, null, null));
             sendMessage(from, response.response());
         } catch (Exception e) {
             log.error("Error processing WhatsApp message from {}", from, e);

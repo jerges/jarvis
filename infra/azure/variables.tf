@@ -11,6 +11,12 @@ variable "resource_group_name" {
   default     = "jarvis-rg"
 }
 
+variable "key_vault_name" {
+  description = "Nombre globalmente único para el Key Vault"
+  type        = string
+  default     = "jarvis-kv-jb"
+}
+
 variable "vm_size" {
   description = "Tamaño de la VM"
   type        = string
@@ -49,10 +55,11 @@ variable "anthropic_api_key" {
   description = "API key de Anthropic"
   type        = string
   sensitive   = true
+  default     = ""
 }
 
 variable "jarvis_default_provider" {
-  description = "Proveedor de IA por defecto: ANTHROPIC | AZURE"
+  description = "Proveedor de IA por defecto: ANTHROPIC | AZURE | OLLAMA"
   type        = string
   default     = "ANTHROPIC"
 }
@@ -84,6 +91,20 @@ variable "azure_agent_deployment" {
   default     = "gpt-4o-mini"
 }
 
+# ── Ollama (opcional) ──────────────────────────────────────────────────────────
+
+variable "ollama_orchestrator_model" {
+  description = "Modelo de Ollama para el orquestador"
+  type        = string
+  default     = "gemma4"
+}
+
+variable "ollama_agent_model" {
+  description = "Modelo de Ollama para los agentes (programación, etc)"
+  type        = string
+  default     = "qwen3-coder:30b"
+}
+
 # ── Telegram ───────────────────────────────────────────────────────────────────
 
 variable "telegram_bot_token" {
@@ -108,7 +129,7 @@ variable "whatsapp_access_token" {
 
 variable "whatsapp_phone_number_id" {
   type    = string
-  default = ""
+  default = "+34670305179"
 }
 
 variable "whatsapp_verify_token" {

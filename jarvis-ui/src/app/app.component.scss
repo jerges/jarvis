@@ -87,19 +87,194 @@ $accent: #6366f1;
   cursor: default;
 }
 
-.agents { gap: 6px; }
+.model-select {
+  background: $bg;
+  color: $text;
+  border: 1px solid $border;
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 12px;
+  outline: none;
 
-.agent-chip {
+  &:focus {
+    border-color: $accent;
+  }
+}
+
+.top-agent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid $border;
+  border-radius: 8px;
+  font-size: 11px;
+  color: $text;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.google-connection {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: $muted;
+}
+
+.google-connection.connected {
+  color: #22c55e;
+}
+
+.google-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: $muted;
+}
+
+.google-connection.connected .google-status-dot {
+  background: #22c55e;
+}
+
+.google-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.google-btn {
+  flex: 1;
+  border: 1px solid $border;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: $text;
+  font-size: 11px;
+  padding: 7px 8px;
+  cursor: pointer;
+}
+
+.google-btn:hover {
+  border-color: $accent;
+}
+
+.google-btn.connected {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.18);
+  color: #dcfce7;
+}
+
+.google-btn.connected:hover {
+  border-color: #16a34a;
+  background: rgba(34, 197, 94, 0.24);
+}
+
+.google-btn.secondary {
+  flex: 0 0 auto;
+}
+
+.agents {
+  gap: 10px;
+}
+
+.org-chart {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid $border;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.org-node {
+  position: relative;
+  width: 100%;
+  border: 1px solid;
+  border-radius: 10px;
+  background: rgba(15, 17, 23, 0.92);
+  padding: 8px 9px;
+  cursor: default;
+}
+
+.org-node.leader {
+  width: calc(100% - 16px);
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.25);
+}
+
+.org-node-main {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
-  border: 1px solid;
-  border-radius: 8px;
-  background: rgba(255,255,255,0.02);
+}
 
-  .agent-icon { font-size: 14px; }
-  .agent-name { font-size: 12px; font-weight: 500; }
+.org-icon {
+  font-size: 14px;
+}
+
+.org-name {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.org-connector {
+  width: 2px;
+  height: 10px;
+  background: $border;
+}
+
+.org-team {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 7px;
+  position: relative;
+}
+
+.org-team::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 12%;
+  right: 12%;
+  height: 1px;
+  background: $border;
+}
+
+.org-tooltip {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 220px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid $border;
+  background: #0b0d13;
+  color: $text;
+  font-size: 11px;
+  line-height: 1.4;
+  z-index: 12;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.org-tooltip::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 50%;
+  transform: translateY(-50%) rotate(45deg);
+  width: 10px;
+  height: 10px;
+  background: #0b0d13;
+  border-left: 1px solid $border;
+  border-bottom: 1px solid $border;
+}
+
+.org-node:hover .org-tooltip {
+  opacity: 1;
 }
 
 .new-chat-btn {
@@ -226,6 +401,45 @@ $accent: #6366f1;
   font-size: 11px;
   color: $muted;
   font-style: italic;
+}
+
+.model-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid $border;
+  border-radius: 999px;
+  font-size: 11px;
+  color: $text;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.agent-used-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid $border;
+  border-radius: 999px;
+  font-size: 11px;
+  color: $text;
+  background: rgba(245, 158, 11, 0.16);
+  border-color: rgba(245, 158, 11, 0.34);
+}
+
+.tokens-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid $border;
+  border-radius: 999px;
+  font-size: 11px;
+  color: $text;
+  background: rgba(100, 200, 255, 0.1);
+  border-color: rgba(100, 200, 255, 0.3);
+  cursor: help;
 }
 
 .bubble {

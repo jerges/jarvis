@@ -1,28 +1,27 @@
-# Build stage
-FROM eclipse-temurin:21-jdk-alpine AS builder
+# Build stage (Maven)
+FROM maven:3.9.11-eclipse-temurin-21 AS builder
 WORKDIR /app
 
-COPY gradlew gradlew.bat ./
-COPY gradle ./gradle
-RUN chmod +x gradlew
-
-# Cache dependencies
-COPY build.gradle settings.gradle ./
-RUN ./gradlew dependencies --no-daemon -q 2>/dev/null || true
+# Copy build metadata first to leverage Docker layer cache.
+COPY pom.xml ./
+COPY .mvn ./.mvn
+COPY mvnw ./
+RUN chmod +x mvnw
+RUN ./mvnw -q -DskipTests dependency:go-offline
 
 COPY src ./src
-RUN ./gradlew bootJar --no-daemon -x test
+RUN ./mvnw -q -DskipTests clean package spring-boot:repackage
 
 # Runtime stage
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
 RUN addgroup -S jarvis && adduser -S jarvis -G jarvis
-COPY --from=builder /app/build/libs/*.jar app.jar
+COPY --from=builder /app/target/*.jar app.jar
 RUN chown jarvis:jarvis app.jar
 
 USER jarvis
 EXPOSE 8080
 
-# -Xmx384m: cabe en t3.micro (1 GB RAM) dejando margen para el SO y nginx
+# -Xmx384m: cabe en instancias pequeñas dejando margen para SO y nginx.
 ENTRYPOINT ["java", "-Xmx384m", "-Xms128m", "-XX:+UseContainerSupport", "-jar", "app.jar"]

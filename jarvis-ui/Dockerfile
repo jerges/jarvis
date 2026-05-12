@@ -3,7 +3,8 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci
+RUN if [ -f package-lock.json ]; then npm ci; else npm install --legacy-peer-deps; fi \
+	&& npm install --no-save --legacy-peer-deps @angular-devkit/build-angular@^19 @angular/build@^19
 
 COPY . .
 RUN npm run build -- --configuration=production

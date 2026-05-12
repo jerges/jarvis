@@ -4,6 +4,7 @@
 # ── Azure ──────────────────────────────────────────────────────────────────────
 location            = "westeurope"
 resource_group_name = "jarvis-rg"
+key_vault_name      = "jarvis-kv-<sufijo-unico>"
 vm_size             = "Standard_B1ms"   # 2 GB RAM, ~$15/mes
 admin_username      = "azureuser"
 ssh_public_key_path = "~/.ssh/id_rsa.pub"
@@ -13,7 +14,7 @@ ssh_allowed_cidr    = "0.0.0.0/0"       # Pon tu IP: "1.2.3.4/32" para mayor seg
 repo_url = "https://github.com/tu-usuario/jarvis.git"
 
 # ── AI Providers ───────────────────────────────────────────────────────────────
-anthropic_api_key       = "sk-ant-your-key-here"
+anthropic_api_key       = ""            # opcional: si lo dejas vacío, se crea placeholder en Key Vault
 jarvis_default_provider = "ANTHROPIC"   # ANTHROPIC | AZURE
 
 # ── Azure AI Foundry (opcional — deja vacío si usas solo Anthropic) ────────────
