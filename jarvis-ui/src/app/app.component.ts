@@ -115,20 +115,49 @@ export class AppComponent {
 
       this.jarvis.stream(request).subscribe({
         next: token => {
-          this.messages.update(msgs => {
-            const updated = [...msgs];
-            const last = { ...updated[updated.length - 1] };
-            last.content += token;
-            updated[updated.length - 1] = last;
-            return updated;
-          });
-          this.scrollToBottom();
+          if (token.startsWith('[META] ')) {
+            try {
+              const meta = JSON.parse(token.slice(7));
+              this.messages.update(msgs => {
+                const updated = [...msgs];
+                updated[updated.length - 1] = {
+                  ...updated[updated.length - 1],
+                  routedTo: meta.routedTo,
+                  reasoning: meta.reasoning,
+                  provider: meta.provider,
+                  model: meta.model,
+                };
+                return updated;
+              });
+            } catch { /* ignorar parse errors */ }
+          } else if (token.startsWith('[USAGE] ')) {
+            try {
+              const usage = JSON.parse(token.slice(8));
+              this.messages.update(msgs => {
+                const updated = [...msgs];
+                updated[updated.length - 1] = {
+                  ...updated[updated.length - 1],
+                  inputTokens: usage.inputTokens,
+                  outputTokens: usage.outputTokens,
+                };
+                return updated;
+              });
+            } catch { /* ignorar parse errors */ }
+          } else {
+            this.messages.update(msgs => {
+              const updated = [...msgs];
+              const last = { ...updated[updated.length - 1] };
+              last.content += token;
+              updated[updated.length - 1] = last;
+              return updated;
+            });
+            this.scrollToBottom();
+          }
         },
         complete: () => {
           this.messages.update(msgs => {
             const updated = [...msgs];
             const finished = { ...updated[updated.length - 1], streaming: false };
-            // In plan mode, register the streamed content as a plan
             if (this.appMode() === 'plan') {
               const plan = this.buildPlan(text, finished.content, finished.routedTo);
               finished.planId = plan.id;
@@ -160,6 +189,10 @@ export class AppComponent {
             routedTo: res.routedTo,
             reasoning: res.reasoning,
             planId,
+            provider: res.provider,
+            model: res.model,
+            inputTokens: res.inputTokens,
+            outputTokens: res.outputTokens,
           }]);
           this.loading = false;
           this.scrollToBottom();

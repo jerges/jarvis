@@ -265,6 +265,27 @@ $plan:    #0ea5e9;   // color para el panel de planes
   50%       { opacity: 0.5; }
 }
 
+.model-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: $muted;
+  background: $bg;
+  border: 1px solid $border;
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.token-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: $muted;
+  background: $bg;
+  border: 1px solid $border;
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: default;
+}
+
 .reasoning {
   font-size: 11px;
   color: $muted;

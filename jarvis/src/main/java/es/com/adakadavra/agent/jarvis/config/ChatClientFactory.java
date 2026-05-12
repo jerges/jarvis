@@ -13,7 +13,8 @@ import java.util.Map;
 public class ChatClientFactory {
 
     private final Map<ModelProvider, ChatClient> orchestratorClients = new EnumMap<>(ModelProvider.class);
-    private final Map<ModelProvider, ChatClient> agentClients = new EnumMap<>(ModelProvider.class);
+    private final Map<ModelProvider, ChatClient> agentClients        = new EnumMap<>(ModelProvider.class);
+    private final Map<ModelProvider, String>     agentModelNames     = new EnumMap<>(ModelProvider.class);
     private final ModelProvider defaultProvider;
 
     public ChatClientFactory(
@@ -24,6 +25,7 @@ public class ChatClientFactory {
             String azureAgentDeployment) {
 
         this.defaultProvider = defaultProvider;
+        agentModelNames.put(ModelProvider.ANTHROPIC, "claude-sonnet-4-6");
 
         orchestratorClients.put(ModelProvider.ANTHROPIC,
                 ChatClient.builder(anthropicModel)
@@ -42,6 +44,7 @@ public class ChatClientFactory {
                         .build());
 
         if (azureModel != null) {
+            agentModelNames.put(ModelProvider.AZURE, azureAgentDeployment);
             orchestratorClients.put(ModelProvider.AZURE,
                     ChatClient.builder(azureModel)
                             .defaultOptions(AzureOpenAiChatOptions.builder()
@@ -82,6 +85,10 @@ public class ChatClientFactory {
 
     public ModelProvider defaultProvider() {
         return defaultProvider;
+    }
+
+    public String getAgentModelName(ModelProvider provider) {
+        return agentModelNames.getOrDefault(resolve(provider), "unknown");
     }
 
     public boolean isAvailable(ModelProvider provider) {

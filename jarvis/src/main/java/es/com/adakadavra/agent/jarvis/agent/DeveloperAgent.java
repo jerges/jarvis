@@ -6,12 +6,15 @@ import es.com.adakadavra.agent.jarvis.model.ModelProvider;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Component
 public class DeveloperAgent implements Agent {
@@ -53,8 +56,41 @@ public class DeveloperAgent implements Agent {
     }
 
     @Override
+    public AgentResult processWithUsage(String request, String conversationId, ModelProvider provider) {
+        var response = basePrompt(request, conversationId, provider).call().chatResponse();
+        var content = response.getResult() != null ? response.getResult().getOutput().getContent() : "";
+        var u = response.getMetadata() != null ? response.getMetadata().getUsage() : null;
+        return new AgentResult(
+                content != null ? content : "",
+                u != null ? u.getPromptTokens() : 0,
+                u != null ? u.getGenerationTokens() : 0);
+    }
+
+    @Override
     public Flux<String> stream(String request, String conversationId, ModelProvider provider) {
-        return basePrompt(request, conversationId, provider).stream().content();
+        return Flux.defer(() -> {
+            AtomicReference<Usage> usageRef = new AtomicReference<>();
+            return basePrompt(request, conversationId, provider)
+                    .stream()
+                    .chatResponse()
+                    .doOnNext(r -> {
+                        Usage u = r.getMetadata() != null ? r.getMetadata().getUsage() : null;
+                        if (u != null) usageRef.set(u);
+                    })
+                    .map(r -> {
+                        if (r.getResult() == null) return "";
+                        String c = r.getResult().getOutput().getContent();
+                        return c != null ? c : "";
+                    })
+                    .filter(s -> !s.isEmpty())
+                    .concatWith(Mono.defer(() -> {
+                        Usage u = usageRef.get();
+                        if (u == null) return Mono.empty();
+                        return Mono.just(String.format(
+                                "[USAGE] {\"inputTokens\":%d,\"outputTokens\":%d}",
+                                u.getPromptTokens(), u.getGenerationTokens()));
+                    }));
+        });
     }
 
     private ChatClient.ChatClientRequestSpec basePrompt(String request, String conversationId, ModelProvider provider) {

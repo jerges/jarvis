@@ -46,16 +46,31 @@ public class OrchestratorAgent {
         String cid = request.conversationId() != null ? request.conversationId() : UUID.randomUUID().toString();
         ModelProvider provider = request.provider();
         RoutingDecision decision = route(request.message(), provider);
-        String response = agents.get(decision.agentType()).process(request.message(), cid, provider);
+        Agent.AgentResult result = agents.get(decision.agentType()).processWithUsage(request.message(), cid, provider);
         ModelProvider resolved = provider != null ? provider : chatClientFactory.defaultProvider();
-        return new AgentResponse(decision.agentType(), decision.reasoning(), response, resolved);
+        String model = chatClientFactory.getAgentModelName(resolved);
+        return new AgentResponse(decision.agentType(), decision.reasoning(), result.content(),
+                resolved, model, result.inputTokens(), result.outputTokens());
     }
 
     public Flux<String> stream(AgentRequest request) {
         String cid = request.conversationId() != null ? request.conversationId() : UUID.randomUUID().toString();
         ModelProvider provider = request.provider();
         RoutingDecision decision = route(request.message(), provider);
-        return agents.get(decision.agentType()).stream(request.message(), cid, provider);
+        ModelProvider resolved = provider != null ? provider : chatClientFactory.defaultProvider();
+        String model = chatClientFactory.getAgentModelName(resolved);
+
+        String reasoning = decision.reasoning() != null
+                ? decision.reasoning().replace("\"", "'").replace("\n", " ").replace("\r", "")
+                : "";
+
+        String metaToken = String.format(
+                "[META] {\"routedTo\":\"%s\",\"reasoning\":\"%s\",\"provider\":\"%s\",\"model\":\"%s\"}",
+                decision.agentType().name(), reasoning, resolved.name(), model);
+
+        return Flux.concat(
+                Flux.just(metaToken),
+                agents.get(decision.agentType()).stream(request.message(), cid, provider));
     }
 
     private RoutingDecision route(String message, ModelProvider provider) {

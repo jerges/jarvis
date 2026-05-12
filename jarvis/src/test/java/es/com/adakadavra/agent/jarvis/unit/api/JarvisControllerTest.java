@@ -31,7 +31,8 @@ class JarvisControllerTest {
 
     @Test
     void chatReturns200WithRoutedResponse() throws Exception {
-        var response = new AgentResponse(AgentType.DEVELOPER, "dev question", "Here is the answer", ModelProvider.ANTHROPIC);
+        var response = new AgentResponse(AgentType.DEVELOPER, "dev question", "Here is the answer",
+                ModelProvider.ANTHROPIC, "claude-sonnet-4-6", 120, 350);
         when(orchestratorAgent.process(any(AgentRequest.class))).thenReturn(response);
 
         mockMvc.perform(post("/api/jarvis/chat")
@@ -43,12 +44,16 @@ class JarvisControllerTest {
                 .andExpect(jsonPath("$.routedTo").value("DEVELOPER"))
                 .andExpect(jsonPath("$.reasoning").value("dev question"))
                 .andExpect(jsonPath("$.response").value("Here is the answer"))
-                .andExpect(jsonPath("$.provider").value("ANTHROPIC"));
+                .andExpect(jsonPath("$.provider").value("ANTHROPIC"))
+                .andExpect(jsonPath("$.model").value("claude-sonnet-4-6"))
+                .andExpect(jsonPath("$.inputTokens").value(120))
+                .andExpect(jsonPath("$.outputTokens").value(350));
     }
 
     @Test
     void chatWithAzureProviderRoutes() throws Exception {
-        var response = new AgentResponse(AgentType.DEVOPS, "devops", "Deploy with kubectl", ModelProvider.AZURE);
+        var response = new AgentResponse(AgentType.DEVOPS, "devops", "Deploy with kubectl",
+                ModelProvider.AZURE, "gpt-4o-mini", 80, 200);
         when(orchestratorAgent.process(any(AgentRequest.class))).thenReturn(response);
 
         mockMvc.perform(post("/api/jarvis/chat")
@@ -58,12 +63,14 @@ class JarvisControllerTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.routedTo").value("DEVOPS"))
-                .andExpect(jsonPath("$.provider").value("AZURE"));
+                .andExpect(jsonPath("$.provider").value("AZURE"))
+                .andExpect(jsonPath("$.model").value("gpt-4o-mini"));
     }
 
     @Test
     void chatWithoutConversationIdAccepted() throws Exception {
-        var response = new AgentResponse(AgentType.FRONTEND, "frontend", "Use flexbox", ModelProvider.ANTHROPIC);
+        var response = new AgentResponse(AgentType.FRONTEND, "frontend", "Use flexbox",
+                ModelProvider.ANTHROPIC, "claude-sonnet-4-6", 50, 150);
         when(orchestratorAgent.process(any(AgentRequest.class))).thenReturn(response);
 
         mockMvc.perform(post("/api/jarvis/chat")
@@ -78,7 +85,10 @@ class JarvisControllerTest {
     @Test
     void streamReturnsServerSentEvents() throws Exception {
         when(orchestratorAgent.stream(any(AgentRequest.class)))
-                .thenReturn(Flux.just("Hello", " there", " Jarvis"));
+                .thenReturn(Flux.just(
+                        "[META] {\"routedTo\":\"DEVELOPER\",\"reasoning\":\"code\",\"provider\":\"ANTHROPIC\",\"model\":\"claude-sonnet-4-6\"}",
+                        "Hello", " there", " Jarvis",
+                        "[USAGE] {\"inputTokens\":50,\"outputTokens\":10}"));
 
         mockMvc.perform(post("/api/jarvis/stream")
                         .contentType(MediaType.APPLICATION_JSON)

@@ -12,6 +12,10 @@ export interface AgentResponse {
   routedTo: AgentType;
   reasoning: string;
   response: string;
+  provider: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
 }
 
 export interface ChatMessage {
@@ -21,6 +25,10 @@ export interface ChatMessage {
   reasoning?: string;
   streaming?: boolean;
   planId?: string;
+  provider?: string;
+  model?: string;
+  inputTokens?: number;
+  outputTokens?: number;
 }
 
 export interface Plan {
