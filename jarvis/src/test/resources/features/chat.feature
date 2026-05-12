@@ -39,3 +39,10 @@ Característica: API de chat de Jarvis
     Cuando envío un mensaje de chat "Cómo uso Terraform?" con provider "ANTHROPIC"
     Entonces la respuesta HTTP es 200
     Y el campo provider es "ANTHROPIC"
+
+  Escenario: Pregunta de ciberseguridad es enrutada al agente Security
+    Dado el orquestador responde con agente "SECURITY" y mensaje "Usa Burp Suite para interceptar las peticiones HTTP y analizar las vulnerabilidades"
+    Cuando envío un mensaje de chat "Cómo hago un pentest a una aplicación web?" con conversationId "conv-sec-1"
+    Entonces la respuesta HTTP es 200
+    Y el campo routedTo es "SECURITY"
+    Y la respuesta contiene un campo response no vacío

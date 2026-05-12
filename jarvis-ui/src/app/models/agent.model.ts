@@ -1,4 +1,4 @@
-export type AgentType = 'SOCIAL_MEDIA' | 'DEVELOPER' | 'DEVOPS' | 'FRONTEND';
+export type AgentType = 'SOCIAL_MEDIA' | 'DEVELOPER' | 'DEVOPS' | 'FRONTEND' | 'SECURITY';
 export type AppMode   = 'agent' | 'plan' | 'cli';
 
 export interface AgentRequest {
@@ -47,4 +47,5 @@ export const AGENT_META: Record<AgentType, { label: string; color: string; icon:
   DEVOPS:       { label: 'DevOps',        color: '#f97316', icon: '⚙️' },
   SOCIAL_MEDIA: { label: 'Social Media',  color: '#22c55e', icon: '📱' },
   FRONTEND:     { label: 'Frontend',      color: '#a855f7', icon: '🎨' },
+  SECURITY:     { label: 'Security',      color: '#ef4444', icon: '🔐' },
 };

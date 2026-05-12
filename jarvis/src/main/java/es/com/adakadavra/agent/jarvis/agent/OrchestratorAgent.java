@@ -27,6 +27,9 @@ public class OrchestratorAgent {
             - DEVELOPER: desarrollo de software, código, arquitectura, APIs, bases de datos, debugging, patrones de diseño, backend
             - DEVOPS: infraestructura, Kubernetes, Docker, CI/CD, cloud (AWS/Azure/GCP), Terraform, monitorización, redes, seguridad de infra
             - FRONTEND: frontend web, React, Vue, Angular, HTML, CSS, diseño UI/UX, Figma, accesibilidad, rendimiento web
+            - SECURITY: ciberseguridad, pentesting, hacking ético, vulnerabilidades (XSS, SQLi, CVEs), análisis forense, SIEM/SOC, \
+            criptografía, hardening, compliance (ISO27001, SOC2, PCI-DSS), herramientas de seguridad (Burp Suite, Nmap, Metasploit), \
+            threat modeling, SAST/DAST, incident response, Red Team, Blue Team
 
             Responde únicamente con el JSON que representa tu decisión de enrutamiento.
             """;

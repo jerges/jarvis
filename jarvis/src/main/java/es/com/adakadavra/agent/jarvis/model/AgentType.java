@@ -4,5 +4,6 @@ public enum AgentType {
     SOCIAL_MEDIA,
     DEVELOPER,
     DEVOPS,
-    FRONTEND
+    FRONTEND,
+    SECURITY
 }
