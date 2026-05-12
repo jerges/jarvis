@@ -2,7 +2,7 @@ import { Component, ElementRef, ViewChild, signal, computed } from '@angular/cor
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JarvisService } from './services/jarvis.service';
-import { AgentType, AppMode, ChatMessage, CliRequest, CliResponse, Plan, AGENT_META } from './models/agent.model';
+import { AgentType, AppMode, ChatMessage, CliRequest, CliResponse, CopilotMode, CopilotRequest, CopilotResponse, CopilotTarget, Plan, AGENT_META } from './models/agent.model';
 
 @Component({
   selector: 'app-root',
@@ -28,6 +28,10 @@ export class AppComponent {
   cliSessionId: string | null = null;
   cliModel = 'sonnet';
   lastCliCostUsd = 0;
+
+  // Estado del modo Copilot
+  copilotMode: CopilotMode   = 'suggest';
+  copilotTarget: CopilotTarget = 'shell';
 
   agentMeta = AGENT_META;
 
@@ -94,6 +98,12 @@ export class AppComponent {
     // ── Modo CLI ──────────────────────────────────────────────────────────────
     if (this.appMode() === 'cli') {
       this.sendCli(text);
+      return;
+    }
+
+    // ── Modo Copilot ──────────────────────────────────────────────────────────
+    if (this.appMode() === 'copilot') {
+      this.sendCopilot(text);
       return;
     }
 
@@ -209,6 +219,51 @@ export class AppComponent {
             role: 'assistant',
             content: res.response,
           }]);
+          this.loading = false;
+          this.scrollToBottom();
+        },
+        error: () => (this.loading = false),
+      });
+    }
+  }
+
+  private sendCopilot(text: string): void {
+    const req: CopilotRequest = {
+      message: text,
+      mode: this.copilotMode,
+      target: this.copilotMode === 'suggest' ? this.copilotTarget : undefined,
+    };
+
+    if (this.streamMode) {
+      const assistantMsg: ChatMessage = { role: 'assistant', content: '', streaming: true };
+      this.messages.update(msgs => [...msgs, assistantMsg]);
+
+      let buffer = '';
+      this.jarvis.copilotStream(req).subscribe({
+        next: token => {
+          if (token.startsWith('[DONE]')) return;
+          buffer += token;
+          this.messages.update(msgs => {
+            const updated = [...msgs];
+            updated[updated.length - 1] = { ...updated[updated.length - 1], content: buffer };
+            return updated;
+          });
+          this.scrollToBottom();
+        },
+        complete: () => {
+          this.messages.update(msgs => {
+            const updated = [...msgs];
+            updated[updated.length - 1] = { ...updated[updated.length - 1], streaming: false };
+            return updated;
+          });
+          this.loading = false;
+        },
+        error: () => (this.loading = false),
+      });
+    } else {
+      this.jarvis.copilotChat(req).subscribe({
+        next: (res: CopilotResponse) => {
+          this.messages.update(msgs => [...msgs, { role: 'assistant', content: res.response }]);
           this.loading = false;
           this.scrollToBottom();
         },

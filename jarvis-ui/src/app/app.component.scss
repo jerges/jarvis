@@ -372,10 +372,35 @@ $plan:    #0ea5e9;   // color para el panel de planes
   }
 }
 
-// ── CLI mode styles ───────────────────────────────────
+$copilot: #10b981;   // esmeralda GitHub Copilot
+
+// ── Mode group (4 botones) ────────────────────────────
 .mode-group {
-  // 3 botones necesitan menos padding
-  .toggle-btn { font-size: 11px; padding: 6px 2px; }
+  flex-wrap: wrap;
+  .toggle-btn { font-size: 10px; padding: 5px 2px; }
+}
+
+// ── Copilot styles ────────────────────────────────────
+.copilot-btn {
+  &.active { background: $copilot !important; }
+}
+
+.copilot-info-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba($copilot, 0.08);
+  border: 1px solid rgba($copilot, 0.25);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.copilot-info-icon { font-size: 16px; }
+
+.copilot-info-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: $copilot;
 }
 
 .cli-session-box {

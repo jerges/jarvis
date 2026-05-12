@@ -6,7 +6,7 @@
       <span class="logo">⚡ Jarvis</span>
     </div>
 
-    <!-- Modo principal: Agente / Plan / CLI -->
+    <!-- Modo principal: Agente / Plan / CLI / Copilot -->
     <div class="sidebar-section">
       <label class="section-label">Modo</label>
       <div class="toggle-group mode-group">
@@ -18,6 +18,9 @@
         </button>
         <button class="toggle-btn" [class.active]="appMode() === 'cli'" (click)="setMode('cli')" title="Llama directamente al Claude CLI">
           ⚡ CLI
+        </button>
+        <button class="toggle-btn" [class.active]="appMode() === 'copilot'" (click)="setMode('copilot')" title="GitHub Copilot CLI">
+          🐙 Copilot
         </button>
       </div>
     </div>
@@ -57,6 +60,31 @@
       </div>
     }
 
+    <!-- Opciones exclusivas del modo Copilot -->
+    @if (appMode() === 'copilot') {
+      <div class="sidebar-section">
+        <label class="section-label">Operación</label>
+        <div class="toggle-group">
+          <button class="toggle-btn copilot-btn" [class.active]="copilotMode === 'suggest'" (click)="copilotMode = 'suggest'">Suggest</button>
+          <button class="toggle-btn copilot-btn" [class.active]="copilotMode === 'explain'" (click)="copilotMode = 'explain'">Explain</button>
+        </div>
+      </div>
+      @if (copilotMode === 'suggest') {
+        <div class="sidebar-section">
+          <label class="section-label">Target</label>
+          <div class="toggle-group">
+            <button class="toggle-btn copilot-btn" [class.active]="copilotTarget === 'shell'" (click)="copilotTarget = 'shell'">Shell</button>
+            <button class="toggle-btn copilot-btn" [class.active]="copilotTarget === 'git'"   (click)="copilotTarget = 'git'">Git</button>
+            <button class="toggle-btn copilot-btn" [class.active]="copilotTarget === 'gh'"    (click)="copilotTarget = 'gh'">gh</button>
+          </div>
+        </div>
+      }
+      <div class="copilot-info-box">
+        <span class="copilot-info-icon">🐙</span>
+        <span class="copilot-info-text">GitHub Copilot CLI</span>
+      </div>
+    }
+
     <!-- Conversation ID -->
     <div class="sidebar-section">
       <label class="section-label">Conversation ID</label>
@@ -91,11 +119,13 @@
 
       @if (messages().length === 0) {
         <div class="empty-state">
-          <span class="empty-icon">{{ appMode() === 'plan' ? '📋' : '⚡' }}</span>
+          <span class="empty-icon">{{ appMode() === 'plan' ? '📋' : appMode() === 'copilot' ? '🐙' : '⚡' }}</span>
           @if (appMode() === 'plan') {
             <p>Modo <strong>Plan</strong>: describe una tarea y Jarvis generará un plan estructurado que quedará guardado en el historial.</p>
           } @else if (appMode() === 'cli') {
             <p>Modo <strong>Claude CLI</strong>: conversación directa con el Claude CLI sin pasar por el orquestador de agentes. Soporte de sesiones persistentes.</p>
+          } @else if (appMode() === 'copilot') {
+            <p>Modo <strong>GitHub Copilot CLI</strong>: obtén sugerencias de comandos shell, git y gh, o explica cualquier comando. Requiere <code>gh copilot</code> instalado.</p>
           } @else {
             <p>Haz una pregunta y Jarvis la enrutará al agente adecuado.</p>
           }
@@ -110,6 +140,12 @@
               <span class="hint" (click)="message = 'Genera tests unitarios para la clase OrchestratorAgent'">🧪 Generar tests</span>
               <span class="hint" (click)="message = 'Revisa el README y sugiere mejoras'">📝 Revisar README</span>
               <span class="hint" (click)="message = 'Explícame el patrón de diseño utilizado en ChatClientFactory'">💡 Explicar código</span>
+            } @else if (appMode() === 'copilot') {
+              <span class="hint" (click)="message = 'list all docker containers sorted by creation date'; copilotMode = 'suggest'; copilotTarget = 'shell'">🐚 Docker containers</span>
+              <span class="hint" (click)="message = 'undo last commit keeping changes staged'; copilotMode = 'suggest'; copilotTarget = 'git'">🔀 Undo last commit</span>
+              <span class="hint" (click)="message = 'list open pull requests assigned to me'; copilotMode = 'suggest'; copilotTarget = 'gh'">🔁 PRs asignados</span>
+              <span class="hint" (click)="message = 'git rebase -i HEAD~3'; copilotMode = 'explain'">💡 Explain git rebase</span>
+              <span class="hint" (click)="message = 'find . -name *.log -mtime +7 -delete'; copilotMode = 'explain'">💡 Explain find+delete</span>
             } @else {
               <span class="hint" (click)="message = 'Cómo hago un deployment en Kubernetes con rolling update?'">⚙️ Kubernetes rolling update</span>
               <span class="hint" (click)="message = 'Implementa un componente React con Tailwind para un formulario de login'">🎨 Componente React</span>
@@ -167,13 +203,17 @@
           (keydown)="onKeydown($event)"
           [placeholder]="appMode() === 'plan'
             ? 'Describe la tarea o proyecto para generar un plan… (Enter para enviar)'
+            : appMode() === 'copilot' && copilotMode === 'suggest'
+            ? 'Describe el comando que necesitas… ej: list running docker containers'
+            : appMode() === 'copilot' && copilotMode === 'explain'
+            ? 'Pega el comando que quieres entender… ej: docker ps -a --format table'
             : 'Escribe tu pregunta… (Enter para enviar, Shift+Enter para nueva línea)'"
           rows="1"
           [disabled]="loading">
         </textarea>
         <button class="send-btn" (click)="send()" [disabled]="loading || !message.trim()" [style.background]="agentColor()">
           @if (loading) { <span class="spinner"></span> }
-          @else { {{ appMode() === 'plan' ? '📋' : '↑' }} }
+          @else { {{ appMode() === 'plan' ? '📋' : appMode() === 'copilot' ? '🐙' : '↑' }} }
         </button>
       </div>
       <p class="input-hint">
@@ -181,6 +221,11 @@
           Modo: <strong>Claude CLI</strong> · Modelo: <strong>{{ cliModel }}</strong>
           · Endpoint: <code>{{ streamMode ? '/api/jarvis/cli/stream' : '/api/jarvis/cli' }}</code>
           @if (cliSessionId) { · Sesión activa }
+        } @else if (appMode() === 'copilot') {
+          Modo: <strong>GitHub Copilot CLI</strong>
+          · Op: <strong>{{ copilotMode }}</strong>
+          @if (copilotMode === 'suggest') { · Target: <strong>{{ copilotTarget }}</strong> }
+          · Endpoint: <code>{{ streamMode ? '/api/jarvis/copilot/stream' : '/api/jarvis/copilot' }}</code>
         } @else {
           Modo: <strong>{{ appMode() === 'plan' ? 'Plan' : 'Agente' }}</strong>
           · Respuesta: <strong>{{ streamMode ? 'Stream (SSE)' : 'Chat' }}</strong>

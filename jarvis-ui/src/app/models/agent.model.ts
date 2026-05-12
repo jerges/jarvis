@@ -1,5 +1,7 @@
 export type AgentType = 'SOCIAL_MEDIA' | 'DEVELOPER' | 'DEVOPS' | 'FRONTEND' | 'SECURITY';
-export type AppMode   = 'agent' | 'plan' | 'cli';
+export type AppMode   = 'agent' | 'plan' | 'cli' | 'copilot';
+export type CopilotMode   = 'suggest' | 'explain';
+export type CopilotTarget = 'shell' | 'git' | 'gh';
 
 export interface AgentRequest {
   message: string;
@@ -40,6 +42,17 @@ export interface CliResponse {
   response: string;
   sessionId: string | null;
   costUsd: number;
+}
+
+export interface CopilotRequest {
+  message: string;
+  mode: CopilotMode;
+  target?: CopilotTarget;
+}
+
+export interface CopilotResponse {
+  response: string;
+  mode: string;
 }
 
 export const AGENT_META: Record<AgentType, { label: string; color: string; icon: string }> = {
