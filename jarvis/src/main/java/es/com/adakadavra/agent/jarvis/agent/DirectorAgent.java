@@ -25,7 +25,7 @@ public class DirectorAgent {
     private static final String DEFAULT_ROUTING_PROMPT = """
             Eres el orquestador de Jarvis, un sistema multi-agente.
             Tu única tarea es analizar la petición del usuario y decidir qué agente especializado debe manejarla.
-            
+
             Agentes disponibles:
             - SECRETARY: agenda, calendario, reuniones, eventos, horarios, recordatorios, documentos, Drive, correos,
               Gmail, actas, tareas, planificación, coordinación, viajes, reservas, asistente personal, secretaría.
@@ -35,7 +35,10 @@ public class DirectorAgent {
             - DEVELOPER: desarrollo de software, código, arquitectura, APIs, bases de datos, debugging, patrones de diseño, backend
             - DEVOPS: infraestructura, Kubernetes, Docker, CI/CD, cloud (AWS/Azure/GCP), Terraform, monitorización, redes, seguridad de infra
             - FRONTEND: frontend web, React, Vue, Angular, HTML, CSS, diseño UI/UX, Figma, accesibilidad, rendimiento web
-            
+            - SECURITY: ciberseguridad, pentesting, hacking ético, vulnerabilidades, OWASP, CVE, XSS, SQLi, SSRF,
+              Burp Suite, Nmap, Metasploit, seguridad en la nube, SIEM, SOC, hardening, forense digital, CTF,
+              threat modeling, STRIDE, ISO 27001, PCI-DSS, SOC 2, SAST, DAST, DevSecOps, Red Team, Blue Team
+
             Responde únicamente con el JSON que representa tu decisión de enrutamiento.
             """;
 
@@ -92,10 +95,19 @@ public class DirectorAgent {
             return Flux.just(orchestratorSelfResponse(resolved));
         }
 
+        ModelProvider streamResolved = provider != null ? provider : chatClientFactory.defaultProvider();
+
         return routeReactive(request.message(), provider)
                 .flatMapMany(decision -> {
                     AgentType routedType = resolveRoutedAgentType(decision);
-                    return agents.get(routedType).stream(request.message(), cid, provider, request.model());
+                    String reasoning = decision.reasoning() != null
+                            ? decision.reasoning().replace("\"", "'") : "";
+                    String metaToken = String.format(
+                            "[META] {\"routedTo\":\"%s\",\"reasoning\":\"%s\",\"provider\":\"%s\"}",
+                            routedType.name(), reasoning, streamResolved.name());
+                    return Flux.concat(
+                            Flux.just(metaToken),
+                            agents.get(routedType).stream(request.message(), cid, provider, request.model()));
                 });
     }
 

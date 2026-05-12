@@ -2,7 +2,10 @@ import { Component, ElementRef, ViewChild, signal, computed, OnInit } from '@ang
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JarvisService } from './services/jarvis.service';
-import { AgentType, ChatMessage, AGENT_META } from './models/agent.model';
+import {
+  AgentType, AppMode, ChatMessage, CopilotMode, CopilotRequest,
+  CopilotResponse, CopilotTarget, Plan, AGENT_META
+} from './models/agent.model';
 
 @Component({
   selector: 'app-root',
@@ -24,10 +27,18 @@ export class AppComponent implements OnInit {
   googleConnected = false;
   googleStatusLabel = 'Not connected';
 
-  messages = signal<ChatMessage[]>([]);
+  messages       = signal<ChatMessage[]>([]);
+  plans          = signal<Plan[]>([]);
+  selectedPlanId = signal<string | null>(null);
+  appMode        = signal<AppMode>('agent');
+
+  // Copilot state
+  copilotMode: CopilotMode     = 'suggest';
+  copilotTarget: CopilotTarget = 'shell';
+
   agentMeta = AGENT_META;
   directorAgent: AgentType = 'DIRECTOR';
-  subAgents: AgentType[] = ['SECRETARY', 'DEVELOPER', 'DEVOPS', 'SOCIAL_MEDIA', 'FRONTEND'];
+  subAgents: AgentType[] = ['SECRETARY', 'SECURITY', 'DEVELOPER', 'DEVOPS', 'SOCIAL_MEDIA', 'FRONTEND'];
 
   agentColor = computed(() => {
     const last = this.messages().findLast((m: ChatMessage) => m.routedTo);
@@ -39,6 +50,13 @@ export class AppComponent implements OnInit {
     return last?.routedTo ?? null;
   });
 
+  selectedPlan = computed(() => {
+    const id = this.selectedPlanId();
+    return id ? this.plans().find(p => p.id === id) ?? null : null;
+  });
+
+  planCount = computed(() => this.plans().length);
+
   constructor(private jarvis: JarvisService) {}
 
   ngOnInit(): void {
@@ -49,21 +67,51 @@ export class AppComponent implements OnInit {
         if (capabilities.allowedModels.length > 0) {
           this.availableModels = capabilities.allowedModels;
         }
-
         this.backendModeLabel = capabilities.cliMode ? 'Claude CLI' : 'Ollama';
-
         if (!this.availableModels.includes(this.selectedModel)) {
           this.selectedModel = this.availableModels[0] ?? '';
         }
       },
-      error: () => {
-        // Keep UI defaults when capabilities endpoint is not available.
-      }
+      error: () => {}
     });
   }
 
+  // ── Mode switching ────────────────────────────────────────────────────────
+
+  setMode(mode: AppMode): void {
+    this.appMode.set(mode);
+    if (mode !== 'plan') this.selectedPlanId.set(null);
+  }
+
+  // ── Plan management ───────────────────────────────────────────────────────
+
+  selectPlan(plan: Plan): void {
+    this.selectedPlanId.set(this.selectedPlanId() === plan.id ? null : plan.id);
+  }
+
+  selectPlanById(id: string): void {
+    const plan = this.plans().find(p => p.id === id);
+    if (plan) this.selectPlan(plan);
+  }
+
+  deletePlan(plan: Plan, event: Event): void {
+    event.stopPropagation();
+    this.plans.update(ps => ps.filter(p => p.id !== plan.id));
+    if (this.selectedPlanId() === plan.id) this.selectedPlanId.set(null);
+  }
+
+  loadPlanIntoChat(plan: Plan): void {
+    this.message = plan.userMessage;
+  }
+
+  clearPlans(): void {
+    this.plans.set([]);
+    this.selectedPlanId.set(null);
+  }
+
+  // ── Google Workspace ──────────────────────────────────────────────────────
+
   connectGoogleWorkspace(): void {
-    // Open popup during click event to prevent popup blockers in async callbacks.
     const authWindow = window.open('', '_blank', 'noopener,noreferrer');
 
     this.jarvis.googleAuthUrl(this.conversationId).subscribe({
@@ -72,86 +120,14 @@ export class AppComponent implements OnInit {
           authWindow.location.href = response.authorizationUrl;
           return;
         }
-
-        // Popup blocked: continue auth in current tab.
         window.location.href = response.authorizationUrl;
       },
       error: () => {
-        if (authWindow && !authWindow.closed) {
-          authWindow.close();
-        }
+        if (authWindow && !authWindow.closed) authWindow.close();
         this.googleConnected = false;
         this.googleStatusLabel = 'OAuth unavailable';
       }
     });
-  }
-
-  send(): void {
-    const text = this.message.trim();
-    if (!text || this.loading) return;
-
-    this.messages.update(msgs => [...msgs, { role: 'user', content: text }]);
-    this.message = '';
-    this.loading = true;
-    this.scrollToBottom();
-
-    const request = { message: text, conversationId: this.conversationId, model: this.selectedModel };
-
-    if (this.streamMode) {
-      const assistantMsg: ChatMessage = {
-        role: 'assistant',
-        content: '',
-        streaming: true,
-        modelUsed: this.selectedModel,
-      };
-      this.messages.update(msgs => [...msgs, assistantMsg]);
-
-      this.jarvis.stream(request).subscribe({
-        next: token => {
-          this.messages.update(msgs => {
-            const updated = [...msgs];
-            const last = { ...updated[updated.length - 1] };
-            last.content += token;
-            updated[updated.length - 1] = last;
-            return updated;
-          });
-          this.scrollToBottom();
-        },
-        complete: () => {
-          this.messages.update(msgs => {
-            const updated = [...msgs];
-            updated[updated.length - 1] = { ...updated[updated.length - 1], streaming: false };
-            return updated;
-          });
-          this.loading = false;
-        },
-        error: () => this.loading = false,
-      });
-    } else {
-       this.jarvis.chat(request).subscribe({
-         next: res => {
-           this.messages.update(msgs => [...msgs, {
-             role: 'assistant',
-             content: res.response,
-             routedTo: res.routedTo,
-             reasoning: res.reasoning,
-             modelUsed: res.modelUsed,
-             tokens: res.tokens,
-           }]);
-           this.loading = false;
-           this.scrollToBottom();
-         },
-         error: () => this.loading = false,
-       });
-    }
-  }
-
-  newChat(): void {
-    this.messages.set([]);
-    this.conversationId = this.newConversationId();
-    this.googleConnected = false;
-    this.googleStatusLabel = 'Not connected';
-    this.refreshGoogleStatus();
   }
 
   refreshGoogleStatus(): void {
@@ -167,6 +143,158 @@ export class AppComponent implements OnInit {
     });
   }
 
+  // ── Sending messages ──────────────────────────────────────────────────────
+
+  send(): void {
+    const text = this.message.trim();
+    if (!text || this.loading) return;
+
+    this.messages.update(msgs => [...msgs, { role: 'user', content: text }]);
+    this.message = '';
+    this.loading = true;
+    this.scrollToBottom();
+
+    if (this.appMode() === 'copilot') {
+      this.sendCopilot(text);
+      return;
+    }
+
+    const request = { message: text, conversationId: this.conversationId, model: this.selectedModel };
+
+    if (this.streamMode) {
+      const assistantMsg: ChatMessage = {
+        role: 'assistant',
+        content: '',
+        streaming: true,
+        modelUsed: this.selectedModel,
+      };
+      this.messages.update(msgs => [...msgs, assistantMsg]);
+
+      this.jarvis.stream(request).subscribe({
+        next: token => {
+          if (token.startsWith('[META] ')) {
+            try {
+              const meta = JSON.parse(token.slice(7));
+              this.messages.update(msgs => {
+                const updated = [...msgs];
+                updated[updated.length - 1] = {
+                  ...updated[updated.length - 1],
+                  routedTo: meta.routedTo,
+                  reasoning: meta.reasoning,
+                };
+                return updated;
+              });
+            } catch { /* ignore parse errors */ }
+          } else {
+            this.messages.update(msgs => {
+              const updated = [...msgs];
+              const last = { ...updated[updated.length - 1] };
+              last.content += token;
+              updated[updated.length - 1] = last;
+              return updated;
+            });
+            this.scrollToBottom();
+          }
+        },
+        complete: () => {
+          this.messages.update(msgs => {
+            const updated = [...msgs];
+            const finished = { ...updated[updated.length - 1], streaming: false };
+            if (this.appMode() === 'plan') {
+              const plan = this.buildPlan(text, finished.content, finished.routedTo);
+              finished.planId = plan.id;
+              this.plans.update(ps => [plan, ...ps]);
+              this.selectedPlanId.set(plan.id);
+            }
+            updated[updated.length - 1] = finished;
+            return updated;
+          });
+          this.loading = false;
+        },
+        error: () => this.loading = false,
+      });
+    } else {
+      this.jarvis.chat(request).subscribe({
+        next: res => {
+          const planId = this.appMode() === 'plan'
+            ? (() => {
+                const plan = this.buildPlan(text, res.response, res.routedTo);
+                this.plans.update(ps => [plan, ...ps]);
+                this.selectedPlanId.set(plan.id);
+                return plan.id;
+              })()
+            : undefined;
+
+          this.messages.update(msgs => [...msgs, {
+            role: 'assistant',
+            content: res.response,
+            routedTo: res.routedTo,
+            reasoning: res.reasoning,
+            modelUsed: res.modelUsed,
+            tokens: res.tokens,
+            planId,
+          }]);
+          this.loading = false;
+          this.scrollToBottom();
+        },
+        error: () => this.loading = false,
+      });
+    }
+  }
+
+  private sendCopilot(text: string): void {
+    const req: CopilotRequest = {
+      message: text,
+      mode: this.copilotMode,
+      target: this.copilotMode === 'suggest' ? this.copilotTarget : undefined,
+    };
+
+    if (this.streamMode) {
+      const assistantMsg: ChatMessage = { role: 'assistant', content: '', streaming: true };
+      this.messages.update(msgs => [...msgs, assistantMsg]);
+
+      let buffer = '';
+      this.jarvis.copilotStream(req).subscribe({
+        next: token => {
+          if (token.startsWith('[DONE]')) return;
+          buffer += token;
+          this.messages.update(msgs => {
+            const updated = [...msgs];
+            updated[updated.length - 1] = { ...updated[updated.length - 1], content: buffer };
+            return updated;
+          });
+          this.scrollToBottom();
+        },
+        complete: () => {
+          this.messages.update(msgs => {
+            const updated = [...msgs];
+            updated[updated.length - 1] = { ...updated[updated.length - 1], streaming: false };
+            return updated;
+          });
+          this.loading = false;
+        },
+        error: () => this.loading = false,
+      });
+    } else {
+      this.jarvis.copilotChat(req).subscribe({
+        next: (res: CopilotResponse) => {
+          this.messages.update(msgs => [...msgs, { role: 'assistant', content: res.response }]);
+          this.loading = false;
+          this.scrollToBottom();
+        },
+        error: () => this.loading = false,
+      });
+    }
+  }
+
+  newChat(): void {
+    this.messages.set([]);
+    this.conversationId = this.newConversationId();
+    this.googleConnected = false;
+    this.googleStatusLabel = 'Not connected';
+    this.refreshGoogleStatus();
+  }
+
   onKeydown(event: KeyboardEvent): void {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
@@ -176,6 +304,30 @@ export class AppComponent implements OnInit {
 
   agentBadge(type: AgentType) {
     return AGENT_META[type];
+  }
+
+  formatTime(date: Date): string {
+    return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  private buildPlan(userMessage: string, content: string, agentType?: AgentType): Plan {
+    return {
+      id: crypto.randomUUID(),
+      title: this.extractTitle(content, userMessage),
+      content,
+      agentType,
+      userMessage,
+      timestamp: new Date(),
+    };
+  }
+
+  private extractTitle(content: string, fallback: string): string {
+    const firstLine = content.split('\n').find(l => l.trim().length > 3)?.trim() ?? '';
+    const candidate = firstLine.replace(/^#+\s*/, '').replace(/^\*+\s*/, '');
+    const source = candidate.length > 8 ? candidate : fallback;
+    return source.length > 64 ? source.slice(0, 61) + '…' : source;
   }
 
   private newConversationId(): string {

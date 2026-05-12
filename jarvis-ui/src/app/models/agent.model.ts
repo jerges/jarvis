@@ -1,4 +1,9 @@
-export type AgentType = 'DIRECTOR' | 'SECRETARY' | 'SOCIAL_MEDIA' | 'DEVELOPER' | 'DEVOPS' | 'FRONTEND';
+export type AgentType = 'DIRECTOR' | 'SECRETARY' | 'SOCIAL_MEDIA' | 'DEVELOPER' | 'DEVOPS' | 'FRONTEND' | 'SECURITY';
+
+export type AppMode = 'agent' | 'plan' | 'copilot';
+
+export type CopilotMode = 'suggest' | 'explain';
+export type CopilotTarget = 'shell' | 'git' | 'gh';
 
 export interface TokenMetadata {
   inputTokens?: number;
@@ -38,6 +43,17 @@ export interface GoogleConnectionStatus {
   expiresAt?: string;
 }
 
+export interface CopilotRequest {
+  message: string;
+  mode: CopilotMode;
+  target?: CopilotTarget;
+}
+
+export interface CopilotResponse {
+  response: string;
+  mode: string;
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
@@ -46,6 +62,16 @@ export interface ChatMessage {
   modelUsed?: string;
   tokens?: TokenMetadata;
   streaming?: boolean;
+  planId?: string;
+}
+
+export interface Plan {
+  id: string;
+  title: string;
+  content: string;
+  agentType?: AgentType;
+  userMessage: string;
+  timestamp: Date;
 }
 
 export const AGENT_META: Record<AgentType, { label: string; color: string; icon: string; skills: string }> = {
@@ -84,5 +110,11 @@ export const AGENT_META: Record<AgentType, { label: string; color: string; icon:
     color: '#a855f7',
     icon: '🎨',
     skills: 'Builds UI components, improves UX, and keeps design systems consistent and accessible.'
+  },
+  SECURITY: {
+    label: 'Security',
+    color: '#ef4444',
+    icon: '🔐',
+    skills: 'Expert in cybersecurity, pentesting, OWASP, CVEs, threat modeling, hardening and DevSecOps.'
   },
 };

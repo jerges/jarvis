@@ -7,12 +7,20 @@ $accent: #6366f1;
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+$copilot: #10b981;
+
 .layout {
   display: flex;
   height: 100vh;
   background: $bg;
   color: $text;
   font-family: 'Inter', sans-serif;
+
+  &.has-plan-panel {
+    display: grid;
+    grid-template-columns: 240px 1fr 300px;
+    grid-template-rows: 100vh;
+  }
 }
 
 // ── Sidebar ──────────────────────────────────────────
@@ -277,8 +285,36 @@ $accent: #6366f1;
   opacity: 1;
 }
 
-.new-chat-btn {
+.mode-group {
+  flex-wrap: wrap;
+  .toggle-btn { font-size: 11px; padding: 5px 4px; }
+}
+
+.copilot-btn {
+  font-size: 12px;
+}
+
+.copilot-info-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba($copilot, 0.35);
+  border-radius: 8px;
+  background: rgba($copilot, 0.08);
+}
+
+.copilot-info-icon { font-size: 14px; }
+.copilot-info-text { font-size: 11px; color: rgba($copilot, 0.9); font-weight: 500; }
+
+.sidebar-actions {
   margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.new-chat-btn {
   padding: 10px;
   border: 1px solid $border;
   border-radius: 8px;
@@ -290,6 +326,20 @@ $accent: #6366f1;
   transition: all 0.15s;
 
   &:hover { background: $border; }
+}
+
+.clear-plans-btn {
+  padding: 8px;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.08);
+  color: #fca5a5;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.15s;
+
+  &:hover { background: rgba(239, 68, 68, 0.18); }
 }
 
 // ── Chat area ────────────────────────────────────────
@@ -401,6 +451,46 @@ $accent: #6366f1;
   font-size: 11px;
   color: $muted;
   font-style: italic;
+}
+
+.model-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border: 1px solid $border;
+  border-radius: 999px;
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  color: $muted;
+  background: $bg;
+}
+
+.token-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 999px;
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  color: rgba(165, 180, 252, 0.85);
+  background: rgba(99, 102, 241, 0.1);
+  cursor: help;
+}
+
+.plan-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 999px;
+  font-size: 10px;
+  color: #fcd34d;
+  background: rgba(245, 158, 11, 0.1);
+  cursor: pointer;
+
+  &:hover { background: rgba(245, 158, 11, 0.2); }
 }
 
 .model-chip {
@@ -542,4 +632,189 @@ $accent: #6366f1;
     padding: 1px 5px;
     border-radius: 4px;
   }
+}
+
+// ── Plan panel ────────────────────────────────────────
+.plan-panel {
+  border-left: 1px solid $border;
+  background: $surface;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.plan-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  border-bottom: 1px solid $border;
+}
+
+.plan-panel-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: $text;
+}
+
+.plan-count-badge {
+  background: $accent;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.plan-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  color: $muted;
+  text-align: center;
+}
+
+.plan-empty-icon { font-size: 36px; }
+
+.plan-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  gap: 6px;
+
+  &::-webkit-scrollbar { width: 3px; }
+  &::-webkit-scrollbar-thumb { background: $border; border-radius: 2px; }
+}
+
+.plan-item {
+  border: 1px solid $border;
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: rgba(255, 255, 255, 0.02);
+
+  &:hover { border-color: rgba($accent, 0.5); background: rgba(255,255,255,0.04); }
+  &.selected { border-color: $accent; background: rgba($accent, 0.08); }
+}
+
+.plan-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.plan-item-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.plan-item-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.plan-item-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: $text;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.plan-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.plan-item-time {
+  font-size: 10px;
+  color: $muted;
+}
+
+.plan-delete-btn {
+  background: transparent;
+  border: none;
+  color: $muted;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  line-height: 1;
+
+  &:hover { color: #ef4444; background: rgba(239,68,68,0.15); }
+}
+
+.plan-item-content {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plan-content-text {
+  font-size: 12px;
+  color: $text;
+  white-space: pre-wrap;
+  max-height: 200px;
+  overflow-y: auto;
+  line-height: 1.5;
+  padding: 8px;
+  background: rgba(0,0,0,0.2);
+  border-radius: 6px;
+  border: 1px solid $border;
+}
+
+.plan-item-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.plan-source-msg {
+  font-size: 10px;
+  color: $muted;
+  font-style: italic;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan-reload-btn {
+  background: transparent;
+  border: 1px solid $border;
+  color: $text;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+
+  &:hover { border-color: $accent; color: $accent; }
+}
+
+.message.has-plan {
+  .bubble { border-color: rgba(245, 158, 11, 0.3); }
 }
