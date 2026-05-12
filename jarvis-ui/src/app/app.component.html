@@ -1,24 +1,40 @@
-<div class="layout">
+<div class="layout" [class.has-plan-panel]="appMode() === 'plan'">
 
-  <!-- Sidebar -->
+  <!-- ── Sidebar ──────────────────────────────────────────────────────────── -->
   <aside class="sidebar">
     <div class="sidebar-header">
       <span class="logo">⚡ Jarvis</span>
     </div>
 
+    <!-- Modo principal: Agente / Plan -->
     <div class="sidebar-section">
       <label class="section-label">Modo</label>
+      <div class="toggle-group">
+        <button class="toggle-btn" [class.active]="appMode() === 'agent'" (click)="setMode('agent')">
+          🤖 Agente
+        </button>
+        <button class="toggle-btn" [class.active]="appMode() === 'plan'" (click)="setMode('plan')">
+          📋 Plan
+        </button>
+      </div>
+    </div>
+
+    <!-- Sub-modo: Chat / Stream -->
+    <div class="sidebar-section">
+      <label class="section-label">Respuesta</label>
       <div class="toggle-group">
         <button class="toggle-btn" [class.active]="!streamMode" (click)="streamMode = false">Chat</button>
         <button class="toggle-btn" [class.active]="streamMode" (click)="streamMode = true">Stream</button>
       </div>
     </div>
 
+    <!-- Conversation ID -->
     <div class="sidebar-section">
       <label class="section-label">Conversation ID</label>
       <span class="conv-id" title="{{ conversationId }}">{{ conversationId | slice:0:18 }}…</span>
     </div>
 
+    <!-- Agentes disponibles -->
     <div class="sidebar-section agents">
       <label class="section-label">Agentes</label>
       @for (entry of agentMeta | keyvalue; track entry.key) {
@@ -29,10 +45,16 @@
       }
     </div>
 
-    <button class="new-chat-btn" (click)="newChat()">+ Nueva conversación</button>
+    <!-- Acciones -->
+    <div class="sidebar-actions">
+      <button class="new-chat-btn" (click)="newChat()">+ Nueva conversación</button>
+      @if (appMode() === 'plan' && planCount() > 0) {
+        <button class="clear-plans-btn" (click)="clearPlans()">🗑 Limpiar planes</button>
+      }
+    </div>
   </aside>
 
-  <!-- Main -->
+  <!-- ── Chat area ─────────────────────────────────────────────────────────── -->
   <main class="chat-area">
 
     <!-- Messages -->
@@ -40,19 +62,33 @@
 
       @if (messages().length === 0) {
         <div class="empty-state">
-          <span class="empty-icon">⚡</span>
-          <p>Haz una pregunta y Jarvis la enrutará al agente adecuado.</p>
+          <span class="empty-icon">{{ appMode() === 'plan' ? '📋' : '⚡' }}</span>
+          @if (appMode() === 'plan') {
+            <p>Modo <strong>Plan</strong>: describe una tarea y Jarvis generará un plan estructurado que quedará guardado en el historial.</p>
+          } @else {
+            <p>Haz una pregunta y Jarvis la enrutará al agente adecuado.</p>
+          }
           <div class="hints">
-            <span class="hint" (click)="message = 'Cómo hago un deployment en Kubernetes con rolling update?'">⚙️ Kubernetes rolling update</span>
-            <span class="hint" (click)="message = 'Implementa un componente React con Tailwind para un formulario de login'">🎨 Componente React</span>
-            <span class="hint" (click)="message = 'Cómo configuro un bot de Telegram con webhooks?'">📱 Bot de Telegram</span>
-            <span class="hint" (click)="message = 'Explícame el patrón CQRS con un ejemplo en Java'">💻 CQRS en Java</span>
+            @if (appMode() === 'plan') {
+              <span class="hint" (click)="message = 'Crea un plan para migrar una app monolítica a microservicios'">🏗 Plan de migración</span>
+              <span class="hint" (click)="message = 'Plan de implementación de CI/CD con GitHub Actions y Docker'">⚙️ Plan CI/CD</span>
+              <span class="hint" (click)="message = 'Plan de estrategia de contenido para redes sociales Q1 2025'">📱 Plan Social Media</span>
+              <span class="hint" (click)="message = 'Plan para rediseñar la UI de una app Angular con sistema de diseño'">🎨 Plan UI/UX</span>
+            } @else {
+              <span class="hint" (click)="message = 'Cómo hago un deployment en Kubernetes con rolling update?'">⚙️ Kubernetes rolling update</span>
+              <span class="hint" (click)="message = 'Implementa un componente React con Tailwind para un formulario de login'">🎨 Componente React</span>
+              <span class="hint" (click)="message = 'Cómo configuro un bot de Telegram con webhooks?'">📱 Bot de Telegram</span>
+              <span class="hint" (click)="message = 'Explícame el patrón CQRS con un ejemplo en Java'">💻 CQRS en Java</span>
+            }
           </div>
         </div>
       }
 
       @for (msg of messages(); track $index) {
-        <div class="message" [class.user]="msg.role === 'user'" [class.assistant]="msg.role === 'assistant'">
+        <div class="message"
+             [class.user]="msg.role === 'user'"
+             [class.assistant]="msg.role === 'assistant'"
+             [class.has-plan]="!!msg.planId">
 
           @if (msg.role === 'assistant') {
             <div class="message-meta">
@@ -62,7 +98,10 @@
                 </span>
               }
               @if (!msg.routedTo && msg.streaming) {
-                <span class="agent-badge streaming-badge">⚡ Streaming...</span>
+                <span class="agent-badge streaming-badge">⚡ Generando…</span>
+              }
+              @if (msg.planId) {
+                <span class="plan-badge" (click)="selectPlanById(msg.planId!)">📋 Plan guardado</span>
               }
               @if (msg.reasoning) {
                 <span class="reasoning" title="{{ msg.reasoning }}">
@@ -88,19 +127,85 @@
         <textarea
           [(ngModel)]="message"
           (keydown)="onKeydown($event)"
-          placeholder="Escribe tu pregunta... (Enter para enviar, Shift+Enter para nueva línea)"
+          [placeholder]="appMode() === 'plan'
+            ? 'Describe la tarea o proyecto para generar un plan… (Enter para enviar)'
+            : 'Escribe tu pregunta… (Enter para enviar, Shift+Enter para nueva línea)'"
           rows="1"
           [disabled]="loading">
         </textarea>
         <button class="send-btn" (click)="send()" [disabled]="loading || !message.trim()" [style.background]="agentColor()">
-          @if (loading) { <span class="spinner"></span> } @else { ↑ }
+          @if (loading) { <span class="spinner"></span> }
+          @else { {{ appMode() === 'plan' ? '📋' : '↑' }} }
         </button>
       </div>
       <p class="input-hint">
-        Modo: <strong>{{ streamMode ? 'Stream (SSE)' : 'Chat (respuesta completa)' }}</strong>
+        Modo: <strong>{{ appMode() === 'plan' ? 'Plan' : 'Agente' }}</strong>
+        · Respuesta: <strong>{{ streamMode ? 'Stream (SSE)' : 'Chat' }}</strong>
         · Endpoint: <code>{{ streamMode ? '/api/jarvis/stream' : '/api/jarvis/chat' }}</code>
       </p>
     </div>
 
   </main>
+
+  <!-- ── Plan history panel (solo en modo Plan) ────────────────────────────── -->
+  @if (appMode() === 'plan') {
+    <aside class="plan-panel">
+      <div class="plan-panel-header">
+        <span class="plan-panel-title">📋 Historial de planes</span>
+        @if (planCount() > 0) {
+          <span class="plan-count-badge">{{ planCount() }}</span>
+        }
+      </div>
+
+      @if (plans().length === 0) {
+        <div class="plan-empty">
+          <span class="plan-empty-icon">📄</span>
+          <p>Los planes que generes aparecerán aquí.<br>Puedes seleccionarlos para ver el contenido completo.</p>
+        </div>
+      }
+
+      <div class="plan-list">
+        @for (plan of plans(); track plan.id) {
+          <div class="plan-item"
+               [class.selected]="selectedPlanId() === plan.id"
+               (click)="selectPlan(plan)">
+
+            <!-- Item header -->
+            <div class="plan-item-header">
+              <div class="plan-item-info">
+                @if (plan.agentType) {
+                  <span class="plan-item-badge"
+                        [style.background]="agentMeta[plan.agentType].color">
+                    {{ agentMeta[plan.agentType].icon }}
+                  </span>
+                }
+                <span class="plan-item-title">{{ plan.title }}</span>
+              </div>
+              <div class="plan-item-actions">
+                <span class="plan-item-time">{{ formatTime(plan.timestamp) }}</span>
+                <button class="plan-delete-btn"
+                        title="Eliminar plan"
+                        (click)="deletePlan(plan, $event)">✕</button>
+              </div>
+            </div>
+
+            <!-- Expanded content -->
+            @if (selectedPlanId() === plan.id) {
+              <div class="plan-item-content">
+                <div class="plan-content-text">{{ plan.content }}</div>
+                <div class="plan-item-footer">
+                  <span class="plan-source-msg">💬 "{{ plan.userMessage | slice:0:60 }}{{ plan.userMessage.length > 60 ? '…' : '' }}"</span>
+                  <button class="plan-reload-btn" (click)="loadPlanIntoChat(plan); $event.stopPropagation()">
+                    ↩ Reutilizar
+                  </button>
+                </div>
+              </div>
+            }
+
+          </div>
+        }
+      </div>
+    </aside>
+  }
+
 </div>

@@ -1,4 +1,5 @@
 export type AgentType = 'SOCIAL_MEDIA' | 'DEVELOPER' | 'DEVOPS' | 'FRONTEND';
+export type AppMode   = 'agent' | 'plan';
 
 export interface AgentRequest {
   message: string;
@@ -17,6 +18,16 @@ export interface ChatMessage {
   routedTo?: AgentType;
   reasoning?: string;
   streaming?: boolean;
+  planId?: string;
+}
+
+export interface Plan {
+  id: string;
+  title: string;
+  content: string;
+  agentType?: AgentType;
+  userMessage: string;
+  timestamp: Date;
 }
 
 export const AGENT_META: Record<AgentType, { label: string; color: string; icon: string }> = {
