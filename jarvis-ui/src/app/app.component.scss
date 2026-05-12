@@ -372,6 +372,58 @@ $plan:    #0ea5e9;   // color para el panel de planes
   }
 }
 
+// ── CLI mode styles ───────────────────────────────────
+.mode-group {
+  // 3 botones necesitan menos padding
+  .toggle-btn { font-size: 11px; padding: 6px 2px; }
+}
+
+.cli-session-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: $bg;
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.cli-session-id {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: $plan;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cli-session-new {
+  font-size: 11px;
+  color: $muted;
+  font-style: italic;
+}
+
+.cli-cost {
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  color: $muted;
+  flex-shrink: 0;
+}
+
+.cli-reset-btn {
+  padding: 6px 10px;
+  border: 1px solid rgba($plan, 0.3);
+  border-radius: 6px;
+  background: rgba($plan, 0.06);
+  color: $plan;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  transition: all 0.15s;
+  &:hover { background: rgba($plan, 0.18); }
+}
+
 // ── Plan panel ────────────────────────────────────────
 .plan-panel {
   width: 300px;

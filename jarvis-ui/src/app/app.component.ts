@@ -2,7 +2,7 @@ import { Component, ElementRef, ViewChild, signal, computed } from '@angular/cor
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JarvisService } from './services/jarvis.service';
-import { AgentType, AppMode, ChatMessage, Plan, AGENT_META } from './models/agent.model';
+import { AgentType, AppMode, ChatMessage, CliRequest, CliResponse, Plan, AGENT_META } from './models/agent.model';
 
 @Component({
   selector: 'app-root',
@@ -24,6 +24,11 @@ export class AppComponent {
   selectedPlanId = signal<string | null>(null);
   appMode        = signal<AppMode>('agent');
 
+  // Estado del modo CLI
+  cliSessionId: string | null = null;
+  cliModel = 'sonnet';
+  lastCliCostUsd = 0;
+
   agentMeta = AGENT_META;
 
   agentColor = computed(() => {
@@ -44,7 +49,14 @@ export class AppComponent {
 
   setMode(mode: AppMode): void {
     this.appMode.set(mode);
-    if (mode === 'agent') this.selectedPlanId.set(null);
+    if (mode !== 'plan') this.selectedPlanId.set(null);
+  }
+
+  resetCliSession(): void {
+    this.cliSessionId = null;
+    this.lastCliCostUsd = 0;
+    this.messages.set([]);
+    this.conversationId = this.newConversationId();
   }
 
   // ── Plan selection ────────────────────────────────────────────────────────
@@ -78,6 +90,12 @@ export class AppComponent {
     this.message = '';
     this.loading = true;
     this.scrollToBottom();
+
+    // ── Modo CLI ──────────────────────────────────────────────────────────────
+    if (this.appMode() === 'cli') {
+      this.sendCli(text);
+      return;
+    }
 
     const request = { message: text, conversationId: this.conversationId };
 
@@ -141,9 +159,72 @@ export class AppComponent {
     }
   }
 
+  private sendCli(text: string): void {
+    const cliReq: CliRequest = {
+      message: text,
+      sessionId: this.cliSessionId ?? undefined,
+      model: this.cliModel,
+    };
+
+    if (this.streamMode) {
+      const assistantMsg: ChatMessage = { role: 'assistant', content: '', streaming: true };
+      this.messages.update(msgs => [...msgs, assistantMsg]);
+
+      let buffer = '';
+      this.jarvis.cliStream(cliReq).subscribe({
+        next: token => {
+          if (token.startsWith('[DONE] ')) {
+            // Parsear metadata del evento de finalización
+            try {
+              const meta = JSON.parse(token.slice(7));
+              if (meta.sessionId) this.cliSessionId = meta.sessionId;
+              this.lastCliCostUsd += meta.costUsd ?? 0;
+            } catch { /* ignorar parse errors */ }
+          } else {
+            buffer += token;
+            this.messages.update(msgs => {
+              const updated = [...msgs];
+              updated[updated.length - 1] = { ...updated[updated.length - 1], content: buffer };
+              return updated;
+            });
+            this.scrollToBottom();
+          }
+        },
+        complete: () => {
+          this.messages.update(msgs => {
+            const updated = [...msgs];
+            updated[updated.length - 1] = { ...updated[updated.length - 1], streaming: false };
+            return updated;
+          });
+          this.loading = false;
+        },
+        error: () => (this.loading = false),
+      });
+    } else {
+      this.jarvis.cliChat(cliReq).subscribe({
+        next: (res: CliResponse) => {
+          if (res.sessionId) this.cliSessionId = res.sessionId;
+          this.lastCliCostUsd += res.costUsd ?? 0;
+          this.messages.update(msgs => [...msgs, {
+            role: 'assistant',
+            content: res.response,
+          }]);
+          this.loading = false;
+          this.scrollToBottom();
+        },
+        error: () => (this.loading = false),
+      });
+    }
+  }
+
   newChat(): void {
     this.messages.set([]);
     this.conversationId = this.newConversationId();
+    // Resetear sesión CLI al iniciar nueva conversación
+    if (this.appMode() === 'cli') {
+      this.cliSessionId = null;
+      this.lastCliCostUsd = 0;
+    }
   }
 
   clearPlans(): void {

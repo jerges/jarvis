@@ -1,5 +1,5 @@
 export type AgentType = 'SOCIAL_MEDIA' | 'DEVELOPER' | 'DEVOPS' | 'FRONTEND';
-export type AppMode   = 'agent' | 'plan';
+export type AppMode   = 'agent' | 'plan' | 'cli';
 
 export interface AgentRequest {
   message: string;
@@ -28,6 +28,18 @@ export interface Plan {
   agentType?: AgentType;
   userMessage: string;
   timestamp: Date;
+}
+
+export interface CliRequest {
+  message: string;
+  sessionId?: string;
+  model?: string;
+}
+
+export interface CliResponse {
+  response: string;
+  sessionId: string | null;
+  costUsd: number;
 }
 
 export const AGENT_META: Record<AgentType, { label: string; color: string; icon: string }> = {

@@ -6,15 +6,18 @@
       <span class="logo">⚡ Jarvis</span>
     </div>
 
-    <!-- Modo principal: Agente / Plan -->
+    <!-- Modo principal: Agente / Plan / CLI -->
     <div class="sidebar-section">
       <label class="section-label">Modo</label>
-      <div class="toggle-group">
-        <button class="toggle-btn" [class.active]="appMode() === 'agent'" (click)="setMode('agent')">
+      <div class="toggle-group mode-group">
+        <button class="toggle-btn" [class.active]="appMode() === 'agent'" (click)="setMode('agent')" title="Agente multi-modelo">
           🤖 Agente
         </button>
-        <button class="toggle-btn" [class.active]="appMode() === 'plan'" (click)="setMode('plan')">
+        <button class="toggle-btn" [class.active]="appMode() === 'plan'" (click)="setMode('plan')" title="Genera y guarda planes">
           📋 Plan
+        </button>
+        <button class="toggle-btn" [class.active]="appMode() === 'cli'" (click)="setMode('cli')" title="Llama directamente al Claude CLI">
+          ⚡ CLI
         </button>
       </div>
     </div>
@@ -27,6 +30,32 @@
         <button class="toggle-btn" [class.active]="streamMode" (click)="streamMode = true">Stream</button>
       </div>
     </div>
+
+    <!-- Opciones exclusivas del modo CLI -->
+    @if (appMode() === 'cli') {
+      <div class="sidebar-section">
+        <label class="section-label">Modelo CLI</label>
+        <div class="toggle-group">
+          <button class="toggle-btn" [class.active]="cliModel === 'sonnet'" (click)="cliModel = 'sonnet'">Sonnet</button>
+          <button class="toggle-btn" [class.active]="cliModel === 'opus'"   (click)="cliModel = 'opus'">Opus</button>
+          <button class="toggle-btn" [class.active]="cliModel === 'haiku'"  (click)="cliModel = 'haiku'">Haiku</button>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <label class="section-label">Sesión CLI</label>
+        <div class="cli-session-box">
+          @if (cliSessionId) {
+            <span class="cli-session-id" title="{{ cliSessionId }}">{{ cliSessionId | slice:0:16 }}…</span>
+            <span class="cli-cost" title="Coste acumulado">${{ lastCliCostUsd.toFixed(4) }}</span>
+          } @else {
+            <span class="cli-session-new">Nueva sesión</span>
+          }
+        </div>
+        @if (cliSessionId) {
+          <button class="cli-reset-btn" (click)="resetCliSession()">↺ Nueva sesión CLI</button>
+        }
+      </div>
+    }
 
     <!-- Conversation ID -->
     <div class="sidebar-section">
@@ -65,6 +94,8 @@
           <span class="empty-icon">{{ appMode() === 'plan' ? '📋' : '⚡' }}</span>
           @if (appMode() === 'plan') {
             <p>Modo <strong>Plan</strong>: describe una tarea y Jarvis generará un plan estructurado que quedará guardado en el historial.</p>
+          } @else if (appMode() === 'cli') {
+            <p>Modo <strong>Claude CLI</strong>: conversación directa con el Claude CLI sin pasar por el orquestador de agentes. Soporte de sesiones persistentes.</p>
           } @else {
             <p>Haz una pregunta y Jarvis la enrutará al agente adecuado.</p>
           }
@@ -74,6 +105,11 @@
               <span class="hint" (click)="message = 'Plan de implementación de CI/CD con GitHub Actions y Docker'">⚙️ Plan CI/CD</span>
               <span class="hint" (click)="message = 'Plan de estrategia de contenido para redes sociales Q1 2025'">📱 Plan Social Media</span>
               <span class="hint" (click)="message = 'Plan para rediseñar la UI de una app Angular con sistema de diseño'">🎨 Plan UI/UX</span>
+            } @else if (appMode() === 'cli') {
+              <span class="hint" (click)="message = 'Analiza el código de este proyecto y sugiere mejoras arquitecturales'">🔍 Análisis de código</span>
+              <span class="hint" (click)="message = 'Genera tests unitarios para la clase OrchestratorAgent'">🧪 Generar tests</span>
+              <span class="hint" (click)="message = 'Revisa el README y sugiere mejoras'">📝 Revisar README</span>
+              <span class="hint" (click)="message = 'Explícame el patrón de diseño utilizado en ChatClientFactory'">💡 Explicar código</span>
             } @else {
               <span class="hint" (click)="message = 'Cómo hago un deployment en Kubernetes con rolling update?'">⚙️ Kubernetes rolling update</span>
               <span class="hint" (click)="message = 'Implementa un componente React con Tailwind para un formulario de login'">🎨 Componente React</span>
@@ -139,9 +175,15 @@
         </button>
       </div>
       <p class="input-hint">
-        Modo: <strong>{{ appMode() === 'plan' ? 'Plan' : 'Agente' }}</strong>
-        · Respuesta: <strong>{{ streamMode ? 'Stream (SSE)' : 'Chat' }}</strong>
-        · Endpoint: <code>{{ streamMode ? '/api/jarvis/stream' : '/api/jarvis/chat' }}</code>
+        @if (appMode() === 'cli') {
+          Modo: <strong>Claude CLI</strong> · Modelo: <strong>{{ cliModel }}</strong>
+          · Endpoint: <code>{{ streamMode ? '/api/jarvis/cli/stream' : '/api/jarvis/cli' }}</code>
+          @if (cliSessionId) { · Sesión activa }
+        } @else {
+          Modo: <strong>{{ appMode() === 'plan' ? 'Plan' : 'Agente' }}</strong>
+          · Respuesta: <strong>{{ streamMode ? 'Stream (SSE)' : 'Chat' }}</strong>
+          · Endpoint: <code>{{ streamMode ? '/api/jarvis/stream' : '/api/jarvis/chat' }}</code>
+        }
       </p>
     </div>
 

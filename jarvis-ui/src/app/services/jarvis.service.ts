@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { AgentRequest, AgentResponse } from '../models/agent.model';
+import { AgentRequest, AgentResponse, CliRequest, CliResponse } from '../models/agent.model';
 
 @Injectable({ providedIn: 'root' })
 export class JarvisService {
@@ -11,6 +11,45 @@ export class JarvisService {
 
   chat(request: AgentRequest): Observable<AgentResponse> {
     return this.http.post<AgentResponse>(`${this.base}/chat`, request);
+  }
+
+  // ── Claude CLI ──────────────────────────────────────────────────────────────
+
+  cliChat(request: CliRequest): Observable<CliResponse> {
+    return this.http.post<CliResponse>(`${this.base}/cli`, request);
+  }
+
+  cliStream(request: CliRequest): Observable<string> {
+    return new Observable(subscriber => {
+      const controller = new AbortController();
+
+      fetch(`${this.base}/cli/stream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+        signal: controller.signal,
+      }).then(async response => {
+        const reader = response.body!.getReader();
+        const decoder = new TextDecoder();
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) { subscriber.complete(); break; }
+
+          const chunk = decoder.decode(value, { stream: true });
+          for (const line of chunk.split('\n')) {
+            if (line.startsWith('data:')) {
+              const token = line.slice(5).trim();
+              if (token) subscriber.next(token);
+            }
+          }
+        }
+      }).catch(err => {
+        if (err.name !== 'AbortError') subscriber.error(err);
+      });
+
+      return () => controller.abort();
+    });
   }
 
   stream(request: AgentRequest): Observable<string> {
