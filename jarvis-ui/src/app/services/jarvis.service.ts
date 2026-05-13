@@ -5,6 +5,8 @@ import {
   AgentRequest,
   AgentResponse,
   BackendCapabilities,
+  CopilotRequest,
+  CopilotResponse,
   GoogleAuthUrlResponse,
   GoogleConnectionStatus,
 } from '../models/agent.model';
@@ -36,14 +38,26 @@ export class JarvisService {
     });
   }
 
+  copilotChat(request: CopilotRequest): Observable<CopilotResponse> {
+    return this.http.post<CopilotResponse>(`${this.base}/copilot`, request);
+  }
+
+  copilotStream(request: CopilotRequest): Observable<string> {
+    return this.fetchStream(`${this.base}/copilot/stream`, request);
+  }
+
   stream(request: AgentRequest): Observable<string> {
+    return this.fetchStream(`${this.base}/stream`, request);
+  }
+
+  private fetchStream(url: string, body: object): Observable<string> {
     return new Observable(subscriber => {
       const controller = new AbortController();
 
-      fetch(`${this.base}/stream`, {
+      fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request),
+        body: JSON.stringify(body),
         signal: controller.signal,
       }).then(async response => {
         if (!response.ok) {
