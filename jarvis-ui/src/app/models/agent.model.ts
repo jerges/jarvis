@@ -1,3 +1,10 @@
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  picture: string | null;
+}
+
 export type AgentType = 'JARVIS' | 'SECRETARY' | 'SOCIAL_MEDIA' | 'DEVELOPER' | 'DEVOPS' | 'FRONTEND' | 'SECURITY';
 
 export type AppMode = 'agent' | 'plan';

@@ -5,6 +5,7 @@ import { shareReplay } from 'rxjs/operators';
 import {
   AgentRequest,
   AgentResponse,
+  AuthUser,
   BackendCapabilities,
   CliProviderStatus,
   CopilotRequest,
@@ -44,6 +45,18 @@ export class JarvisService {
     return this.http.get<GoogleConnectionStatus>(`${this.googleBase}/status`, {
       params: { conversationId },
     });
+  }
+
+  checkAuth(): Observable<AuthUser> {
+    return this.http.get<AuthUser>('/api/auth/me');
+  }
+
+  getLoginUrl(): Observable<{ loginUrl: string }> {
+    return this.http.get<{ loginUrl: string }>('/api/auth/login-url');
+  }
+
+  logout(): Observable<void> {
+    return this.http.post<void>('/api/auth/logout', {});
   }
 
   copilotChat(request: CopilotRequest): Observable<CopilotResponse> {
