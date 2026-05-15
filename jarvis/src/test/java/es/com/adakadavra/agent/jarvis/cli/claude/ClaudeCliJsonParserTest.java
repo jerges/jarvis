@@ -1,4 +1,4 @@
-package es.com.adakadavra.agent.jarvis.config;
+package es.com.adakadavra.agent.jarvis.cli.claude;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import es.com.adakadavra.agent.jarvis.model.AgentType;
@@ -122,4 +122,5 @@ class ClaudeCliJsonParserTest {
         assertThat(decision.reasoning()).isEqualTo("Default routing.");
     }
 }
+
 

@@ -1,4 +1,4 @@
-package es.com.adakadavra.agent.jarvis.config;
+package es.com.adakadavra.agent.jarvis.cli.claude;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -19,13 +19,13 @@ public class ClaudeCliJsonParser {
         this.objectMapper = objectMapper;
     }
 
-    public ClaudeCliResponse parseResponse(String jsonPayload, String fallbackModel) {
+    public es.com.adakadavra.agent.jarvis.cli.claude.ClaudeCliResponse parseResponse(String jsonPayload, String fallbackModel) {
         try {
             JsonNode root = parsePayload(jsonPayload);
             String content = root.path("result").asText();
             String modelUsed = resolveModelUsed(root, fallbackModel);
             TokenMetadata tokens = extractTokenMetadata(root.path("usage"));
-            return new ClaudeCliResponse(content, modelUsed, tokens);
+            return new es.com.adakadavra.agent.jarvis.cli.claude.ClaudeCliResponse(content, modelUsed, tokens);
         } catch (JsonProcessingException ex) {
             throw new IllegalArgumentException("Could not parse Claude CLI JSON response", ex);
         }
@@ -163,4 +163,5 @@ public class ClaudeCliJsonParser {
         return Optional.empty();
     }
 }
+
 

@@ -1,9 +1,11 @@
-export type AgentType = 'DIRECTOR' | 'SECRETARY' | 'SOCIAL_MEDIA' | 'DEVELOPER' | 'DEVOPS' | 'FRONTEND' | 'SECURITY';
+export type AgentType = 'JARVIS' | 'SECRETARY' | 'SOCIAL_MEDIA' | 'DEVELOPER' | 'DEVOPS' | 'FRONTEND' | 'SECURITY';
 
-export type AppMode = 'agent' | 'plan' | 'copilot';
+export type AppMode = 'agent' | 'plan';
 
 export type CopilotMode = 'suggest' | 'explain';
 export type CopilotTarget = 'shell' | 'git' | 'gh';
+export type CliProvider = 'copilot' | 'claude';
+export type ConnectionType = 'api' | 'ollama' | 'copilot-cli' | 'claude-cli';
 
 export interface TokenMetadata {
   inputTokens?: number;
@@ -15,7 +17,10 @@ export interface TokenMetadata {
 export interface AgentRequest {
   message: string;
   conversationId: string;
+  provider?: 'ANTHROPIC' | 'AZURE' | 'OLLAMA' | 'CLAUDE_CLI' | 'COPILOT_CLI';
   model?: string;
+  heuristicRoutingEnabled?: boolean;
+  heuristicMinKeywordHits?: number;
 }
 
 export interface AgentResponse {
@@ -28,8 +33,15 @@ export interface AgentResponse {
 
 export interface BackendCapabilities {
   defaultProvider: string;
-  cliMode: boolean;
-  allowedModels: string[];
+  connections: Record<ConnectionType, ConnectionCapabilities>;
+}
+
+export interface ConnectionCapabilities {
+  label: string;
+  models: string[];
+  provider?: 'ANTHROPIC' | 'AZURE' | 'OLLAMA' | 'CLAUDE_CLI' | 'COPILOT_CLI';
+  heuristicSupported: boolean;
+  heuristicRequired: boolean;
 }
 
 export interface GoogleAuthUrlResponse {
@@ -47,11 +59,19 @@ export interface CopilotRequest {
   message: string;
   mode: CopilotMode;
   target?: CopilotTarget;
+  provider: CliProvider;
 }
 
 export interface CopilotResponse {
   response: string;
   mode: string;
+}
+
+export interface CliProviderStatus {
+  provider: CliProvider;
+  available: boolean;
+  authenticated: boolean;
+  message: string;
 }
 
 export interface ChatMessage {
@@ -75,8 +95,8 @@ export interface Plan {
 }
 
 export const AGENT_META: Record<AgentType, { label: string; color: string; icon: string; skills: string }> = {
-  DIRECTOR: {
-    label: 'Director',
+  JARVIS: {
+    label: 'Jarvis',
     color: '#14b8a6',
     icon: '🧠',
     skills: 'Understands intent, routes requests, and coordinates the best specialist for each task.'

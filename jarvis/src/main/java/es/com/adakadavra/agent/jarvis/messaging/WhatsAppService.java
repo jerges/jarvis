@@ -1,12 +1,11 @@
 package es.com.adakadavra.agent.jarvis.messaging;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import es.com.adakadavra.agent.jarvis.agent.DirectorAgent;
+import es.com.adakadavra.agent.jarvis.agent.JarvisAgent;
 import es.com.adakadavra.agent.jarvis.model.AgentRequest;
 import es.com.adakadavra.agent.jarvis.model.AgentResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Async;
@@ -21,8 +20,10 @@ public class WhatsAppService {
     private static final Logger log = LoggerFactory.getLogger(WhatsAppService.class);
     private static final int MAX_WHATSAPP_MESSAGE_LENGTH = 4096;
 
-    private final DirectorAgent orchestrator;
-    private final RestClient restClient;
+    private final JarvisAgent orchestrator;
+    private final RestClient restClient = RestClient.builder()
+            .baseUrl("https://graph.facebook.com/v21.0")
+            .build();
 
     @Value("${jarvis.whatsapp.phone-number-id:}")
     private String phoneNumberId;
@@ -30,11 +31,8 @@ public class WhatsAppService {
     @Value("${jarvis.whatsapp.access-token:}")
     private String accessToken;
 
-    public WhatsAppService(
-            DirectorAgent orchestrator,
-            @Qualifier("whatsappRestClient") RestClient restClient) {
+    public WhatsAppService(JarvisAgent orchestrator) {
         this.orchestrator = orchestrator;
-        this.restClient = restClient;
     }
 
     @Async
@@ -64,7 +62,7 @@ public class WhatsAppService {
 
         try {
             AgentResponse response = orchestrator.process(
-                    new AgentRequest(text, "whatsapp-" + from, null, null));
+                    new AgentRequest(text, "whatsapp-" + from, null, null, null, null));
             sendMessage(from, response.response());
         } catch (Exception e) {
             log.error("Error processing WhatsApp message from {}", from, e);

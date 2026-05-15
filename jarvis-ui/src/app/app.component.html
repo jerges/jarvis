@@ -6,7 +6,7 @@
       <span class="logo">⚡ Jarvis</span>
     </div>
 
-    <!-- App mode: Agent / Plan / Copilot -->
+    <!-- App mode: Agent / Plan -->
     <div class="sidebar-section">
       <label class="section-label">Modo</label>
       <div class="toggle-group mode-group">
@@ -15,9 +15,6 @@
         </button>
         <button class="toggle-btn" [class.active]="appMode() === 'plan'" (click)="setMode('plan')" title="Genera y guarda planes">
           📋 Plan
-        </button>
-        <button class="toggle-btn" [class.active]="appMode() === 'copilot'" (click)="setMode('copilot')" title="GitHub Copilot CLI">
-          🐙 Copilot
         </button>
       </div>
     </div>
@@ -31,66 +28,33 @@
       </div>
     </div>
 
-    <!-- Copilot options -->
-    @if (appMode() === 'copilot') {
-      <div class="sidebar-section">
-        <label class="section-label">Operación</label>
-        <div class="toggle-group">
-          <button class="toggle-btn copilot-btn" [class.active]="copilotMode === 'suggest'" (click)="copilotMode = 'suggest'">Suggest</button>
-          <button class="toggle-btn copilot-btn" [class.active]="copilotMode === 'explain'" (click)="copilotMode = 'explain'">Explain</button>
-        </div>
-      </div>
-      @if (copilotMode === 'suggest') {
-        <div class="sidebar-section">
-          <label class="section-label">Target</label>
-          <div class="toggle-group">
-            <button class="toggle-btn copilot-btn" [class.active]="copilotTarget === 'shell'" (click)="copilotTarget = 'shell'">Shell</button>
-            <button class="toggle-btn copilot-btn" [class.active]="copilotTarget === 'git'"   (click)="copilotTarget = 'git'">Git</button>
-            <button class="toggle-btn copilot-btn" [class.active]="copilotTarget === 'gh'"    (click)="copilotTarget = 'gh'">gh</button>
-          </div>
-        </div>
+    <div class="sidebar-section">
+      <label class="section-label">Último agente</label>
+      @if (lastRoutedAgent()) {
+        <span class="top-agent-chip" [style.border-color]="agentBadge(lastRoutedAgent()!).color">
+          🤖 Último agente: {{ agentBadge(lastRoutedAgent()!).label }}
+        </span>
       }
-      <div class="copilot-info-box">
-        <span class="copilot-info-icon">🐙</span>
-        <span class="copilot-info-text">GitHub Copilot CLI</span>
-      </div>
-    }
+    </div>
 
-    <!-- Model selector (hidden in copilot mode) -->
-    @if (appMode() !== 'copilot') {
-      <div class="sidebar-section">
-        <label class="section-label">Modelo ({{ backendModeLabel }})</label>
-        @if (lastRoutedAgent()) {
-          <span class="top-agent-chip" [style.border-color]="agentBadge(lastRoutedAgent()!).color">
-            🤖 Último agente: {{ agentBadge(lastRoutedAgent()!).label }}
-          </span>
-        }
-        <select class="model-select" [(ngModel)]="selectedModel">
-          @for (model of availableModels; track model) {
-            <option [value]="model">{{ model }}</option>
-          }
-        </select>
+    <!-- Google Workspace -->
+    <div class="sidebar-section">
+      <label class="section-label">Google Workspace</label>
+      <div class="google-connection" [class.connected]="googleConnected">
+        <span class="google-status-dot"></span>
+        <span>{{ googleStatusLabel }}</span>
       </div>
-
-      <!-- Google Workspace -->
-      <div class="sidebar-section">
-        <label class="section-label">Google Workspace</label>
-        <div class="google-connection" [class.connected]="googleConnected">
-          <span class="google-status-dot"></span>
-          <span>{{ googleStatusLabel }}</span>
-        </div>
-        <div class="google-actions">
-          <button
-            class="google-btn"
-            [class.connected]="googleConnected"
-            type="button"
-            (click)="connectGoogleWorkspace()">
-            {{ googleConnected ? 'Connected' : 'Connect Drive/Gmail' }}
-          </button>
-          <button class="google-btn secondary" type="button" (click)="refreshGoogleStatus()">Refresh</button>
-        </div>
+      <div class="google-actions">
+        <button
+          class="google-btn"
+          [class.connected]="googleConnected"
+          type="button"
+          (click)="connectGoogleWorkspace()">
+          {{ googleConnected ? 'Connected' : 'Connect Drive/Gmail' }}
+        </button>
+        <button class="google-btn secondary" type="button" (click)="refreshGoogleStatus()">Refresh</button>
       </div>
-    }
+    </div>
 
     <!-- Conversation ID -->
     <div class="sidebar-section">
@@ -98,33 +62,30 @@
       <span class="conv-id" title="{{ conversationId }}">{{ conversationId | slice:0:18 }}…</span>
     </div>
 
-    <!-- Agents org chart (only in agent/plan modes) -->
-    @if (appMode() !== 'copilot') {
-      <div class="sidebar-section agents">
-        <label class="section-label">Agentes</label>
-        <div class="org-chart">
-          <div class="org-node leader" [style.border-color]="agentMeta[directorAgent].color">
-            <div class="org-node-main">
-              <span class="org-icon">{{ agentMeta[directorAgent].icon }}</span>
-              <span class="org-name">{{ agentMeta[directorAgent].label }}</span>
-            </div>
-            <span class="org-tooltip">{{ agentMeta[directorAgent].skills }}</span>
+    <div class="sidebar-section agents">
+      <label class="section-label">Agentes</label>
+      <div class="org-chart">
+        <div class="org-node leader" [style.border-color]="agentMeta[coordinatorAgent].color">
+          <div class="org-node-main">
+            <span class="org-icon">{{ agentMeta[coordinatorAgent].icon }}</span>
+            <span class="org-name">{{ agentMeta[coordinatorAgent].label }}</span>
           </div>
-          <div class="org-connector"></div>
-          <div class="org-team">
-            @for (agentType of subAgents; track agentType) {
-              <div class="org-node" [style.border-color]="agentMeta[agentType].color">
-                <div class="org-node-main">
-                  <span class="org-icon">{{ agentMeta[agentType].icon }}</span>
-                  <span class="org-name">{{ agentMeta[agentType].label }}</span>
-                </div>
-                <span class="org-tooltip">{{ agentMeta[agentType].skills }}</span>
+          <span class="org-tooltip">{{ agentMeta[coordinatorAgent].skills }}</span>
+        </div>
+        <div class="org-connector"></div>
+        <div class="org-team">
+          @for (agentType of subAgents; track agentType) {
+            <div class="org-node" [style.border-color]="agentMeta[agentType].color">
+              <div class="org-node-main">
+                <span class="org-icon">{{ agentMeta[agentType].icon }}</span>
+                <span class="org-name">{{ agentMeta[agentType].label }}</span>
               </div>
-            }
-          </div>
+              <span class="org-tooltip">{{ agentMeta[agentType].skills }}</span>
+            </div>
+          }
         </div>
       </div>
-    }
+    </div>
 
     <!-- Actions -->
     <div class="sidebar-actions">
@@ -143,13 +104,11 @@
 
       @if (messages().length === 0) {
         <div class="empty-state">
-          <span class="empty-icon">{{ appMode() === 'plan' ? '📋' : appMode() === 'copilot' ? '🐙' : '⚡' }}</span>
+          <span class="empty-icon">{{ appMode() === 'plan' ? '📋' : '⚡' }}</span>
           @if (appMode() === 'plan') {
             <p>Modo <strong>Plan</strong>: describe una tarea y Jarvis generará un plan estructurado que quedará guardado en el historial.</p>
-          } @else if (appMode() === 'copilot') {
-            <p>Modo <strong>GitHub Copilot CLI</strong>: obtén sugerencias de comandos shell, git y gh, o explica cualquier comando. Requiere <code>gh copilot</code> instalado.</p>
           } @else {
-            <p>Haz una pregunta y Jarvis la enrutará al agente adecuado.</p>
+            <p>Haz una pregunta y Jarvis la enrutará al agente adecuado usando el tipo de conexión seleccionado.</p>
           }
           <div class="hints">
             @if (appMode() === 'plan') {
@@ -157,12 +116,6 @@
               <span class="hint" (click)="message = 'Plan de implementación de CI/CD con GitHub Actions y Docker'">⚙️ Plan CI/CD</span>
               <span class="hint" (click)="message = 'Plan de estrategia de contenido para redes sociales Q1 2025'">📱 Plan Social Media</span>
               <span class="hint" (click)="message = 'Plan para rediseñar la UI de una app Angular con sistema de diseño'">🎨 Plan UI/UX</span>
-            } @else if (appMode() === 'copilot') {
-              <span class="hint" (click)="message = 'list all docker containers sorted by creation date'; copilotMode = 'suggest'; copilotTarget = 'shell'">🐚 Docker containers</span>
-              <span class="hint" (click)="message = 'undo last commit keeping changes staged'; copilotMode = 'suggest'; copilotTarget = 'git'">🔀 Undo last commit</span>
-              <span class="hint" (click)="message = 'list open pull requests assigned to me'; copilotMode = 'suggest'; copilotTarget = 'gh'">🔁 PRs asignados</span>
-              <span class="hint" (click)="message = 'git rebase -i HEAD~3'; copilotMode = 'explain'">💡 Explain git rebase</span>
-              <span class="hint" (click)="message = 'find . -name *.log -mtime +7 -delete'; copilotMode = 'explain'">💡 Explain find+delete</span>
             } @else {
               <span class="hint" (click)="message = 'Cómo hago un deployment en Kubernetes con rolling update?'">⚙️ Kubernetes rolling update</span>
               <span class="hint" (click)="message = 'Implementa un componente React con Tailwind para un formulario de login'">🎨 Componente React</span>
@@ -222,37 +175,92 @@
 
     <!-- Input -->
     <div class="input-area">
+      @if (uiError) {
+        <div class="ui-error-banner">⚠ {{ uiError }}</div>
+      }
       <div class="input-box" [class.loading]="loading">
         <textarea
           [(ngModel)]="message"
           (keydown)="onKeydown($event)"
           [placeholder]="appMode() === 'plan'
             ? 'Describe la tarea o proyecto para generar un plan… (Enter para enviar)'
-            : appMode() === 'copilot' && copilotMode === 'suggest'
-            ? 'Describe el comando que necesitas… ej: list running docker containers'
-            : appMode() === 'copilot' && copilotMode === 'explain'
-            ? 'Pega el comando que quieres entender… ej: docker ps -a --format table'
             : 'Escribe tu pregunta… (Enter para enviar, Shift+Enter para nueva línea)'"
           rows="1"
           [disabled]="loading">
         </textarea>
         <button class="send-btn" (click)="send()" [disabled]="loading || !message.trim()" [style.background]="agentColor()">
           @if (loading) { <span class="spinner"></span> }
-          @else { {{ appMode() === 'plan' ? '📋' : appMode() === 'copilot' ? '🐙' : '↑' }} }
+          @else { {{ appMode() === 'plan' ? '📋' : '↑' }} }
         </button>
       </div>
       <p class="input-hint">
-        @if (appMode() === 'copilot') {
-          Modo: <strong>GitHub Copilot CLI</strong>
-          · Op: <strong>{{ copilotMode }}</strong>
-          @if (copilotMode === 'suggest') { · Target: <strong>{{ copilotTarget }}</strong> }
-          · Endpoint: <code>{{ streamMode ? '/api/jarvis/copilot/stream' : '/api/jarvis/copilot' }}</code>
-        } @else {
-          Modo: <strong>{{ appMode() === 'plan' ? 'Plan' : 'Agente' }}</strong>
-          · Respuesta: <strong>{{ streamMode ? 'Stream (SSE)' : 'Chat' }}</strong>
-          · Endpoint: <code>{{ streamMode ? '/api/jarvis/stream' : '/api/jarvis/chat' }}</code>
-        }
+        Modo: <strong>{{ appMode() === 'plan' ? 'Plan' : 'Agente' }}</strong>
+        · Conexión: <strong>{{ connectionType }}</strong>
+        · Respuesta: <strong>{{ streamMode ? 'Stream (SSE)' : 'Chat' }}</strong>
+        · Endpoint: <code>{{ streamMode ? '/api/jarvis/stream' : '/api/jarvis/chat' }}</code>
       </p>
+
+      <div class="routing-toolbar" aria-label="Barra inferior de conexión, modelo y routing">
+        <div class="routing-toolbar-section routing-toolbar-connection">
+          <span class="routing-toolbar-title">Conexión</span>
+          <div class="toggle-group mode-group">
+            <button class="toggle-btn" [class.active]="connectionType === 'api'" (click)="setConnectionType('api')">API</button>
+            <button class="toggle-btn" [class.active]="connectionType === 'ollama'" (click)="setConnectionType('ollama')">Ollama</button>
+            <button class="toggle-btn" [class.active]="connectionType === 'claude-cli'" (click)="setConnectionType('claude-cli')">Claude CLI</button>
+            <button class="toggle-btn" [class.active]="connectionType === 'copilot-cli'" (click)="setConnectionType('copilot-cli')">Copilot CLI</button>
+          </div>
+        </div>
+
+        <div class="routing-toolbar-section routing-toolbar-model">
+          <span class="routing-toolbar-title">Modelo · {{ currentConnectionCapabilities().label }}</span>
+          <select class="model-select" [ngModel]="selectedModelForCurrentConnection()" (ngModelChange)="setSelectedModel($event)">
+            @for (model of modelOptionsForCurrentConnection(); track model) {
+              <option [value]="model">{{ model }}</option>
+            }
+          </select>
+        </div>
+
+        @if (currentConnectionCapabilities().heuristicSupported) {
+          <div class="routing-toolbar-section routing-toolbar-heuristic">
+            <span class="routing-toolbar-title">Routing heurístico</span>
+            <div class="toggle-group">
+              <button
+                class="toggle-btn"
+                [class.active]="heuristicRoutingEnabled"
+                [disabled]="currentConnectionCapabilities().heuristicRequired"
+                (click)="heuristicRoutingEnabled = true">
+                Activado
+              </button>
+              <button
+                class="toggle-btn"
+                [class.active]="!heuristicRoutingEnabled"
+                [disabled]="currentConnectionCapabilities().heuristicRequired"
+                (click)="heuristicRoutingEnabled = false">
+                Desactivado
+              </button>
+            </div>
+          </div>
+
+          <div class="routing-toolbar-section routing-toolbar-level">
+            <span class="routing-toolbar-title">Nivel</span>
+            <select class="model-select" [(ngModel)]="heuristicMinKeywordHits">
+              <option [ngValue]="1">1 · Más rápido</option>
+              <option [ngValue]="2">2 · Balanceado</option>
+              <option [ngValue]="3">3 · Más preciso</option>
+              <option [ngValue]="4">4 · Estricto</option>
+            </select>
+          </div>
+        }
+
+        <div class="routing-toolbar-status">
+          @if (currentCliStatus() && (!currentCliStatus()!.available || !currentCliStatus()!.authenticated)) {
+            <div class="cli-warning">⚠ {{ currentCliStatus()!.message }}</div>
+          }
+          @if (connectionType === 'copilot-cli') {
+            <div class="cli-warning">Copilot CLI requiere heurística; el selector de modelo usa la lista anunciada por el CLI.</div>
+          }
+        </div>
+      </div>
     </div>
 
   </main>

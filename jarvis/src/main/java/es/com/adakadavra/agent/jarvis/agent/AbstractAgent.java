@@ -4,6 +4,7 @@ import es.com.adakadavra.agent.jarvis.config.AgentPromptCatalog;
 import es.com.adakadavra.agent.jarvis.config.ChatClientFactory;
 import es.com.adakadavra.agent.jarvis.google.GoogleWorkspaceContextService;
 import es.com.adakadavra.agent.jarvis.model.AgentExecutionResult;
+import es.com.adakadavra.agent.jarvis.model.GuardDecision;
 import es.com.adakadavra.agent.jarvis.model.AgentType;
 import es.com.adakadavra.agent.jarvis.model.ModelProvider;
 import es.com.adakadavra.agent.jarvis.model.TokenMetadata;
@@ -20,6 +21,9 @@ import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -30,6 +34,9 @@ import java.util.stream.Collectors;
 public abstract class AbstractAgent implements Agent {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractAgent.class);
+    private static final int CLI_RECENT_MESSAGES = 2;
+    private static final int CLI_SUMMARY_MAX_CHARS = 1400;
+    private static final int CLI_MESSAGE_SNIPPET_MAX_CHARS = 220;
 
     protected final ChatClientFactory chatClientFactory;
     protected final ChatMemory chatMemory;
@@ -37,6 +44,7 @@ public abstract class AbstractAgent implements Agent {
     protected final AgentPromptCatalog promptCatalog;
     protected final AgentType agentType;
     protected final GoogleWorkspaceContextService googleWorkspaceContextService;
+    private final Map<String, SummaryState> cliSummaryByConversation = new ConcurrentHashMap<>();
 
     protected AbstractAgent(
             ChatClientFactory chatClientFactory,
@@ -71,10 +79,26 @@ public abstract class AbstractAgent implements Agent {
         messages.add(new UserMessage(request));
         chatMemory.add(conversationId, messages);
 
+        GuardDecision guardDecision = evaluateGuard(request, provider);
+        if (!guardDecision.allowed()) {
+            AgentExecutionResult blocked = new AgentExecutionResult(
+                    buildGuardRejectionMessage(guardDecision),
+                    "guard-blocked");
+            messages = new ArrayList<>(chatMemory.get(conversationId));
+            messages.add(new AssistantMessage(blocked.response()));
+            chatMemory.add(conversationId, messages);
+            return Mono.just(blocked);
+        }
+
         AgentExecutionResult executionResult;
         if (chatClientFactory.usesClaudeCli(provider)) {
             executionResult = chatClientFactory.executeWithClaudeCli(
-                    buildSystemPromptWithContext(chatMemory.get(conversationId), conversationId),
+                    buildSystemPromptWithContext(chatMemory.get(conversationId), conversationId, provider),
+                    request,
+                    requestedModel);
+        } else if (chatClientFactory.usesCopilotCli(provider)) {
+            executionResult = chatClientFactory.executeWithCopilotCli(
+                    buildSystemPromptWithContext(chatMemory.get(conversationId), conversationId, provider),
                     request,
                     requestedModel);
         } else {
@@ -112,9 +136,25 @@ public abstract class AbstractAgent implements Agent {
         messages.add(new UserMessage(request));
         chatMemory.add(conversationId, messages);
 
+        GuardDecision guardDecision = evaluateGuard(request, provider);
+        if (!guardDecision.allowed()) {
+            String rejection = buildGuardRejectionMessage(guardDecision);
+            messages = new ArrayList<>(chatMemory.get(conversationId));
+            messages.add(new AssistantMessage(rejection));
+            chatMemory.add(conversationId, messages);
+            return Flux.just(rejection);
+        }
+
         if (chatClientFactory.usesClaudeCli(provider)) {
             return chatClientFactory.streamWithClaudeCli(
-                    buildSystemPromptWithContext(chatMemory.get(conversationId), conversationId),
+                    buildSystemPromptWithContext(chatMemory.get(conversationId), conversationId, provider),
+                    request,
+                    requestedModel);
+        }
+
+        if (chatClientFactory.usesCopilotCli(provider)) {
+            return chatClientFactory.streamWithCopilotCli(
+                    buildSystemPromptWithContext(chatMemory.get(conversationId), conversationId, provider),
                     request,
                     requestedModel);
         }
@@ -151,7 +191,7 @@ public abstract class AbstractAgent implements Agent {
                 useFallbackModel ? " (fallback model)" : "");
 
         List<Message> history = chatMemory.get(conversationId);
-        String contextualSystemPrompt = buildSystemPromptWithContext(history, conversationId);
+        String contextualSystemPrompt = buildSystemPromptWithContext(history, conversationId, resolvedProvider);
 
         var prompt = (useFallbackModel
                 ? chatClientFactory.agentFallbackClient(resolvedProvider, requestedModel)
@@ -169,6 +209,80 @@ public abstract class AbstractAgent implements Agent {
 
     private String resolveModelUsed(ModelProvider provider, boolean fallback, String requestedModel) {
         return chatClientFactory.resolveAgentModelName(provider, fallback, requestedModel);
+    }
+
+    private GuardDecision evaluateGuard(String request, ModelProvider provider) {
+        String systemPrompt = buildGuardSystemPrompt();
+        String rawDecision;
+
+        try {
+            ModelProvider resolvedProvider = provider != null ? provider : chatClientFactory.defaultProvider();
+            if (chatClientFactory.usesClaudeCli(resolvedProvider)) {
+                rawDecision = chatClientFactory.evaluateGuardWithClaudeCli(systemPrompt, request);
+            } else if (chatClientFactory.usesCopilotCli(resolvedProvider)) {
+                rawDecision = chatClientFactory.evaluateGuardWithCopilotCli(systemPrompt, request, null);
+            } else {
+                rawDecision = chatClientFactory.orchestratorClient(resolvedProvider)
+                        .prompt()
+                        .system(systemPrompt)
+                        .user(request)
+                        .call()
+                        .content();
+            }
+        } catch (Exception ex) {
+            logger.warn("[{}] Guard evaluation failed, allowing request. Cause: {}", type(), ex.getMessage());
+            return new GuardDecision(true, "Guard unavailable");
+        }
+
+        return parseGuardDecision(rawDecision);
+    }
+
+    private String buildGuardSystemPrompt() {
+        String fallbackGuard = """
+                You are a strict scope guard for the %s agent.
+                Decide if the user request is within this agent scope.
+                Return exactly one line:
+                ALLOW|<short reason>
+                or
+                DENY|<short reason>
+                Use DENY when the request should be handled by a different specialist.
+                """.formatted(type().name());
+        return promptCatalog.guardPrompt(agentType, fallbackGuard);
+    }
+
+    private GuardDecision parseGuardDecision(String rawDecision) {
+        if (rawDecision == null || rawDecision.isBlank()) {
+            return new GuardDecision(true, "Empty guard response");
+        }
+
+        String normalized = rawDecision.strip();
+        String upper = normalized.toUpperCase(Locale.ROOT);
+        if (upper.startsWith("ALLOW")) {
+            return new GuardDecision(true, extractGuardReason(normalized));
+        }
+        if (upper.startsWith("DENY")) {
+            return new GuardDecision(false, extractGuardReason(normalized));
+        }
+
+        // Do not block if the provider returned a non-structured answer.
+        return new GuardDecision(true, "Unstructured guard response");
+    }
+
+    private String extractGuardReason(String decision) {
+        int separator = decision.indexOf('|');
+        if (separator < 0 || separator + 1 >= decision.length()) {
+            return "No reason provided";
+        }
+        return decision.substring(separator + 1).trim();
+    }
+
+    private String buildGuardRejectionMessage(GuardDecision decision) {
+        String reason = decision.reason() == null || decision.reason().isBlank()
+                ? "The request is outside this agent scope"
+                : decision.reason();
+        return "I am the " + type().name() + " specialist. I can only answer requests in my scope. "
+                + "Please ask Jarvis to route this to the appropriate agent. "
+                + "Reason: " + reason;
     }
 
     private boolean shouldFallbackToOllama(ModelProvider provider, Throwable ex) {
@@ -202,7 +316,7 @@ public abstract class AbstractAgent implements Agent {
      * Builds the complete system prompt with dynamic context.
      * This method combines the base system prompt with conversation context.
      */
-    private String buildSystemPromptWithContext(List<Message> conversationHistory, String conversationId) {
+    private String buildSystemPromptWithContext(List<Message> conversationHistory, String conversationId, ModelProvider provider) {
         StringBuilder prompt = new StringBuilder();
 
         // Add base system prompt
@@ -210,14 +324,27 @@ public abstract class AbstractAgent implements Agent {
 
         // Add conversation context if available
         if (!conversationHistory.isEmpty()) {
-            String conversationContext = extractConversationContext(conversationHistory);
+            boolean cliProvider = isCliProvider(provider);
+            List<Message> contextualMessages = cliProvider
+                    ? extractRecentContext(conversationHistory, CLI_RECENT_MESSAGES)
+                    : conversationHistory;
+
+            if (cliProvider) {
+                String incrementalSummary = updateCliSummary(conversationId, conversationHistory);
+                if (!incrementalSummary.isBlank()) {
+                    prompt.append("\n## Conversation Summary:\n");
+                    prompt.append(incrementalSummary).append("\n");
+                }
+            }
+
+            String conversationContext = extractConversationContext(contextualMessages);
             if (!conversationContext.isEmpty()) {
                 prompt.append("\n## Contexto de la Conversación:\n");
                 prompt.append(conversationContext).append("\n");
             }
 
             // Add recent topics for better understanding
-            List<String> recentTopics = extractRecentTopics(conversationHistory);
+            List<String> recentTopics = extractRecentTopics(contextualMessages);
             if (!recentTopics.isEmpty()) {
                 prompt.append("\n## Temas Recientes:\n");
                 recentTopics.forEach(topic -> prompt.append("- ").append(topic).append("\n"));
@@ -246,9 +373,15 @@ public abstract class AbstractAgent implements Agent {
     private String extractConversationContext(List<Message> history) {
         return history.stream()
                 .skip(Math.max(0, history.size() - 4))  // Last 4 messages
-                .map(msg -> formatMessage(msg))
+                .map(this::formatMessage)
                 .filter(s -> !s.isEmpty())
                 .collect(Collectors.joining("\n"));
+    }
+
+    private List<Message> extractRecentContext(List<Message> history, int maxMessages) {
+        return history.stream()
+                .skip(Math.max(0, history.size() - maxMessages))
+                .toList();
     }
 
     /**
@@ -256,36 +389,97 @@ public abstract class AbstractAgent implements Agent {
      */
     private List<String> extractRecentTopics(List<Message> history) {
         return history.stream()
-                .filter(msg -> msg instanceof UserMessage)
-                .map(msg -> formatMessage(msg))
+                .filter(UserMessage.class::isInstance)
+                .map(this::formatMessage)
                 .filter(s -> !s.isEmpty())
                 .flatMap(content -> extractKeywords(content).stream())
                 .distinct()
                 .limit(5)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**
      * Formats a message for context extraction.
      */
     private String formatMessage(Message msg) {
-        if (msg instanceof UserMessage) {
-            return msg.toString();
-        } else if (msg instanceof AssistantMessage) {
-            return msg.toString();
+        if (msg instanceof UserMessage userMessage) {
+            return "User: " + sanitizeMessageText(userMessage.getText());
         }
-        return msg.toString();
+        if (msg instanceof AssistantMessage assistantMessage) {
+            return "Assistant: " + sanitizeMessageText(assistantMessage.getText());
+        }
+        return sanitizeMessageText(msg.toString());
+    }
+
+    private String sanitizeMessageText(String text) {
+        if (text == null || text.isBlank()) {
+            return "";
+        }
+        return text.replaceAll("\\s+", " ").trim();
+    }
+
+    private boolean isCliProvider(ModelProvider provider) {
+        return chatClientFactory.usesClaudeCli(provider) || chatClientFactory.usesCopilotCli(provider);
+    }
+
+    private String updateCliSummary(String conversationId, List<Message> fullHistory) {
+        int summaryBoundary = Math.max(0, fullHistory.size() - CLI_RECENT_MESSAGES);
+        if (summaryBoundary == 0) {
+            cliSummaryByConversation.remove(conversationId);
+            return "";
+        }
+
+        SummaryState current = cliSummaryByConversation.get(conversationId);
+        if (current == null || summaryBoundary < current.processedMessages()) {
+            String rebuilt = summarizeMessages(fullHistory.subList(0, summaryBoundary), "");
+            SummaryState newState = new SummaryState(summaryBoundary, rebuilt);
+            cliSummaryByConversation.put(conversationId, newState);
+            return rebuilt;
+        }
+
+        if (summaryBoundary == current.processedMessages()) {
+            return current.summary();
+        }
+
+        String appended = summarizeMessages(
+                fullHistory.subList(current.processedMessages(), summaryBoundary),
+                current.summary());
+        SummaryState updated = new SummaryState(summaryBoundary, appended);
+        cliSummaryByConversation.put(conversationId, updated);
+        return appended;
+    }
+
+    private String summarizeMessages(List<Message> messages, String baseSummary) {
+        String summary = baseSummary == null ? "" : baseSummary;
+        for (Message message : messages) {
+            String formatted = formatMessage(message);
+            if (formatted.isBlank()) {
+                continue;
+            }
+
+            if (formatted.length() > CLI_MESSAGE_SNIPPET_MAX_CHARS) {
+                formatted = formatted.substring(0, CLI_MESSAGE_SNIPPET_MAX_CHARS) + "...";
+            }
+
+            summary = summary.isBlank() ? formatted : summary + " | " + formatted;
+            if (summary.length() > CLI_SUMMARY_MAX_CHARS) {
+                summary = summary.substring(summary.length() - CLI_SUMMARY_MAX_CHARS);
+            }
+        }
+        return summary;
+    }
+
+    private record SummaryState(int processedMessages, String summary) {
     }
 
     /**
      * Extracts meaningful keywords from text content.
      */
     private List<String> extractKeywords(String content) {
-        return List.of(content.split("[\\s,.:;!?()]+"))
-                .stream()
+        return java.util.Arrays.stream(content.split("[\\s,.:;!?()]+"))
                 .filter(word -> word.length() > 4)  // Words longer than 4 characters
                 .limit(3)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**

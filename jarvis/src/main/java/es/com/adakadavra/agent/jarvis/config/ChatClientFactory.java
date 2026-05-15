@@ -1,5 +1,6 @@
 package es.com.adakadavra.agent.jarvis.config;
 
+import es.com.adakadavra.agent.jarvis.cli.copilot.CopilotCliService;
 import es.com.adakadavra.agent.jarvis.model.AgentExecutionResult;
 import es.com.adakadavra.agent.jarvis.model.ModelProvider;
 import es.com.adakadavra.agent.jarvis.model.RoutingDecision;
@@ -24,7 +25,8 @@ public class ChatClientFactory {
     private final Map<ModelProvider, ChatClient> agentClients = new EnumMap<>(ModelProvider.class);
     private final ModelProvider defaultProvider;
     private final OllamaChatModel ollamaModel;
-    private final ClaudeCliClient claudeCliClient;
+    private final CopilotCliService copilotCliService;
+    private final es.com.adakadavra.agent.jarvis.cli.claude.ClaudeCliClient claudeCliClient;
     private final String azureAgentDeployment;
     private final String ollamaAgentModel;
     private final String ollamaFallbackAgentModel;
@@ -36,7 +38,8 @@ public class ChatClientFactory {
             AnthropicChatModel anthropicModel,
             AzureOpenAiChatModel azureModel,
             OllamaChatModel ollamaModel,
-            ClaudeCliClient claudeCliClient,
+            CopilotCliService copilotCliService,
+            es.com.adakadavra.agent.jarvis.cli.claude.ClaudeCliClient claudeCliClient,
             ModelProvider defaultProvider,
             String azureOrchestratorDeployment,
             String azureAgentDeployment,
@@ -48,6 +51,7 @@ public class ChatClientFactory {
 
         this.defaultProvider = defaultProvider;
         this.ollamaModel = ollamaModel;
+        this.copilotCliService = copilotCliService;
         this.claudeCliClient = claudeCliClient;
         this.azureAgentDeployment = azureAgentDeployment;
         this.ollamaAgentModel = ollamaAgentModel;
@@ -177,16 +181,27 @@ public class ChatClientFactory {
         return resolved == ModelProvider.CLAUDE_CLI;
     }
 
+    public boolean usesCopilotCli(ModelProvider provider) {
+        ModelProvider resolved = provider != null ? provider : defaultProvider;
+        return resolved == ModelProvider.COPILOT_CLI;
+    }
+
     public RoutingDecision routeWithClaudeCli(String routingPrompt, String message) {
         return claudeCliClient.route(routingPrompt, message, resolveOrchestratorModelName(ModelProvider.CLAUDE_CLI));
     }
 
     public AgentExecutionResult executeWithClaudeCli(String systemPrompt, String message, String requestedModel) {
-        ClaudeCliResponse response = claudeCliClient.execute(
+        es.com.adakadavra.agent.jarvis.cli.claude.ClaudeCliResponse response = claudeCliClient.execute(
                 systemPrompt,
                 message,
                 resolveAgentModelName(ModelProvider.CLAUDE_CLI, false, requestedModel));
         return new AgentExecutionResult(response.content(), response.modelUsed(), response.tokens());
+    }
+
+    public AgentExecutionResult executeWithCopilotCli(String systemPrompt, String message, String requestedModel) {
+        String resolvedModel = resolveAgentModelName(ModelProvider.COPILOT_CLI, false, requestedModel);
+        var response = copilotCliService.executeForAgent(systemPrompt, message, resolvedModel);
+        return new AgentExecutionResult(response.response(), resolvedModel, null);
     }
 
     public Flux<String> streamWithClaudeCli(String systemPrompt, String message, String requestedModel) {
@@ -196,10 +211,34 @@ public class ChatClientFactory {
                 resolveAgentModelName(ModelProvider.CLAUDE_CLI, false, requestedModel));
     }
 
+    public Flux<String> streamWithCopilotCli(String systemPrompt, String message, String requestedModel) {
+        return copilotCliService.streamForAgent(
+                systemPrompt,
+                message,
+                resolveAgentModelName(ModelProvider.COPILOT_CLI, false, requestedModel));
+    }
+
+    public String evaluateGuardWithClaudeCli(String guardSystemPrompt, String message) {
+        var response = claudeCliClient.execute(
+                guardSystemPrompt,
+                message,
+                resolveOrchestratorModelName(ModelProvider.CLAUDE_CLI));
+        return response.content();
+    }
+
+    public String evaluateGuardWithCopilotCli(String guardSystemPrompt, String message, String requestedModel) {
+        var response = copilotCliService.executeForAgent(
+                guardSystemPrompt,
+                message,
+                resolveAgentModelName(ModelProvider.COPILOT_CLI, false, requestedModel));
+        return response.response();
+    }
+
     public String resolveOrchestratorModelName(ModelProvider provider) {
         ModelProvider resolved = provider != null ? provider : defaultProvider;
         return switch (resolved) {
             case ANTHROPIC -> ANTHROPIC_ORCHESTRATOR_MODEL;
+            case COPILOT_CLI -> "default";
             case CLAUDE_CLI -> claudeCliOrchestratorModel;
             case AZURE -> "gpt-4o";
             case OLLAMA -> ollamaAgentModel;
@@ -210,6 +249,7 @@ public class ChatClientFactory {
         ModelProvider resolved = provider != null ? provider : defaultProvider;
         return switch (resolved) {
             case ANTHROPIC -> ANTHROPIC_AGENT_MODEL;
+            case COPILOT_CLI -> requestedModel != null && !requestedModel.isBlank() ? requestedModel : "default";
             case CLAUDE_CLI -> requestedModel != null && !requestedModel.isBlank() ? requestedModel : claudeCliAgentModel;
             case AZURE -> azureAgentDeployment;
             case OLLAMA -> {
@@ -231,6 +271,9 @@ public class ChatClientFactory {
     public boolean isAvailable(ModelProvider provider) {
         if (provider == ModelProvider.CLAUDE_CLI) {
             return claudeCliClient != null;
+        }
+        if (provider == ModelProvider.COPILOT_CLI) {
+            return copilotCliService != null;
         }
         return orchestratorClients.containsKey(provider);
     }

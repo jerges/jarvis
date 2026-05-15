@@ -9,13 +9,13 @@ Telegram Bot  ──►  TelegramWebhookController  ──►  TelegramService  
 WhatsApp API  ──►  WhatsAppWebhookController  ──►  WhatsAppService  ─┤
 REST API      ──►  JarvisController           ────────────────────────┤
                                                                        ▼
-                                                             OrchestratorAgent
+                                                                 JarvisAgent
                                                       (ANTHROPIC → Claude Opus 4.7)
                                                       (AZURE     → gpt-4o)
                                                                │
                                               ┌────────────────┼────────────────┐
                                               │                │                │
-                                     SocialMediaAgent   DeveloperAgent    DevOpsAgent / FrontendAgent
+                                  SecretaryAgent / SecurityAgent / SocialMediaAgent / DeveloperAgent / DevOpsAgent / FrontendAgent
                                     (Sonnet 4.6 / gpt-4o-mini)
 ```
 
@@ -40,13 +40,13 @@ El proveedor puede cambiarse **por petición** con el campo `"provider"` en el J
 
 | Clase | Responsabilidad |
 |-------|-----------------|
-| `OrchestratorAgent` | Clasifica la petición con el modelo orquestador del provider elegido |
+| `JarvisAgent` | Clasifica la petición con el modelo orquestador del provider elegido |
 | `ChatClientFactory` | Crea y gestiona los `ChatClient` para cada provider (Anthropic / Azure) |
 | `TelegramService` | Recibe updates de Telegram, llama al orquestador y devuelve la respuesta |
 | `WhatsAppService` | Recibe mensajes de WhatsApp Cloud API, llama al orquestador y devuelve la respuesta |
 | `MessagingConfig` | Crea los `RestClient` para Telegram y WhatsApp, habilita `@Async` |
 | `ModelProvider` | Enum `ANTHROPIC` \| `AZURE` |
-| Subagentes | `SocialMediaAgent`, `DeveloperAgent`, `DevOpsAgent`, `FrontendAgent` |
+| Subagentes | `SecretaryAgent`, `SecurityAgent`, `SocialMediaAgent`, `DeveloperAgent`, `DevOpsAgent`, `FrontendAgent` |
 
 ### Funcionalidades
 
@@ -323,7 +323,9 @@ src/main/java/es/com/adakadavra/agent/jarvis/
 ├── JarvisApplication.java
 ├── agent/
 │   ├── Agent.java                  # Interfaz base (process/stream reciben ModelProvider)
-│   ├── OrchestratorAgent.java      # Router principal — acepta AgentRequest completo
+│   ├── JarvisAgent.java            # Router principal — acepta AgentRequest completo
+│   ├── SecretaryAgent.java
+│   ├── SecurityAgent.java
 │   ├── SocialMediaAgent.java
 │   ├── DeveloperAgent.java
 │   ├── DevOpsAgent.java
@@ -340,7 +342,7 @@ src/main/java/es/com/adakadavra/agent/jarvis/
 │   ├── TelegramService.java        # Procesa updates de Telegram (@Async)
 │   └── WhatsAppService.java        # Procesa mensajes de WhatsApp (@Async)
 └── model/
-    ├── AgentType.java              # Enum: SOCIAL_MEDIA, DEVELOPER, DEVOPS, FRONTEND
+    ├── AgentType.java              # Enum: JARVIS, SECRETARY, SECURITY, SOCIAL_MEDIA, DEVELOPER, DEVOPS, FRONTEND
     ├── ModelProvider.java          # Enum: ANTHROPIC, AZURE
     ├── AgentRequest.java           # Record: message, conversationId, provider
     ├── AgentResponse.java          # Record: routedTo, reasoning, response, provider

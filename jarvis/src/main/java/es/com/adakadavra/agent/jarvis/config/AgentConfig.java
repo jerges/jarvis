@@ -1,6 +1,7 @@
 package es.com.adakadavra.agent.jarvis.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import es.com.adakadavra.agent.jarvis.cli.copilot.CopilotCliService;
 import es.com.adakadavra.agent.jarvis.model.ModelProvider;
 import org.springframework.ai.anthropic.AnthropicChatModel;
 import org.springframework.ai.azure.openai.AzureOpenAiChatModel;
@@ -31,18 +32,18 @@ public class AgentConfig {
     }
 
     @Bean
-    public ClaudeCliJsonParser claudeCliJsonParser(ObjectMapper objectMapper) {
-        return new ClaudeCliJsonParser(objectMapper);
+    public es.com.adakadavra.agent.jarvis.cli.claude.ClaudeCliJsonParser claudeCliJsonParser(ObjectMapper objectMapper) {
+        return new es.com.adakadavra.agent.jarvis.cli.claude.ClaudeCliJsonParser(objectMapper);
     }
 
     @Bean
-    public ClaudeCliClient claudeCliClient(
-            ClaudeCliJsonParser claudeCliJsonParser,
+    public es.com.adakadavra.agent.jarvis.cli.claude.ClaudeCliClient claudeCliClient(
+            es.com.adakadavra.agent.jarvis.cli.claude.ClaudeCliJsonParser claudeCliJsonParser,
             @Value("${jarvis.claude-cli.command:claude}") String command,
             @Value("${jarvis.claude-cli.working-directory:${user.dir}}") String workingDirectory,
             @Value("${jarvis.claude-cli.timeout-seconds:180}") long timeoutSeconds) {
 
-        return new ClaudeCliClient(
+        return new es.com.adakadavra.agent.jarvis.cli.claude.ClaudeCliClient(
                 claudeCliJsonParser,
                 command,
                 Path.of(workingDirectory),
@@ -54,7 +55,8 @@ public class AgentConfig {
             @Autowired(required = false) AnthropicChatModel anthropicChatModel,
             @Autowired(required = false) AzureOpenAiChatModel azureChatModel,
             @Autowired(required = false) OllamaChatModel ollamaChatModel,
-            ClaudeCliClient claudeCliClient,
+            CopilotCliService copilotCliService,
+            es.com.adakadavra.agent.jarvis.cli.claude.ClaudeCliClient claudeCliClient,
             @Value("${jarvis.ai.default-provider:ANTHROPIC}") String defaultProvider,
             @Value("${jarvis.azure.orchestrator-deployment:gpt-4o}") String azureOrchestratorDeployment,
             @Value("${jarvis.azure.agent-deployment:gpt-4o-mini}") String azureAgentDeployment,
@@ -68,6 +70,7 @@ public class AgentConfig {
                 anthropicChatModel,
                 azureChatModel,
                 ollamaChatModel,
+                copilotCliService,
                 claudeCliClient,
                 ModelProvider.valueOf(defaultProvider.trim().toUpperCase()),
                 azureOrchestratorDeployment,

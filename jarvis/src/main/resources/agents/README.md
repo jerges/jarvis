@@ -18,6 +18,7 @@ Supported agents:
 - `devops`
 - `frontend`
 - `social-media`
+- `security`
 
 ## Runtime override
 

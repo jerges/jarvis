@@ -31,7 +31,7 @@ public class AgentPromptCatalog {
     }
 
     public String routingPrompt(String fallback) {
-        return readPrompt(AgentType.DIRECTOR, "routing.md", fallback);
+        return readPrompt(AgentType.JARVIS, "routing.md", fallback);
     }
 
     public String enrichedAgentContext(AgentType agentType, String fallbackContext) {
@@ -46,6 +46,10 @@ public class AgentPromptCatalog {
         }
 
         return String.join("\n\n", sections);
+    }
+
+    public String guardPrompt(AgentType agentType, String fallback) {
+        return readPrompt(agentType, "guard.md", fallback);
     }
 
     private void appendSection(List<String> sections, String title, String content) {
@@ -104,12 +108,13 @@ public class AgentPromptCatalog {
 
     private String agentFolder(AgentType agentType) {
         return switch (agentType) {
-            case DIRECTOR -> "orchestrator";
+            case JARVIS -> "orchestrator";
             case DEVELOPER -> "developer";
             case DEVOPS -> "devops";
             case FRONTEND -> "frontend";
             case SECRETARY -> "secretary";
             case SOCIAL_MEDIA -> "social-media";
+            case SECURITY -> "security";
         };
     }
 }

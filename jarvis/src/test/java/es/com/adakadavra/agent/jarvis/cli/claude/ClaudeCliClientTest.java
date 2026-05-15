@@ -1,4 +1,4 @@
-package es.com.adakadavra.agent.jarvis.config;
+package es.com.adakadavra.agent.jarvis.cli.claude;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -59,4 +59,5 @@ class ClaudeCliClientTest {
                 .hasMessageContaining("Allowed Claude CLI models: haiku, sonnet, opus");
     }
 }
+
 

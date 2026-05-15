@@ -1,4 +1,4 @@
-package es.com.adakadavra.agent.jarvis.config;
+package es.com.adakadavra.agent.jarvis.cli.claude;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +21,7 @@ public class ClaudeCliClient {
 
     private static final Logger logger = LoggerFactory.getLogger(ClaudeCliClient.class);
 
-    private final ClaudeCliJsonParser parser;
+    private final es.com.adakadavra.agent.jarvis.cli.claude.ClaudeCliJsonParser parser;
     private final String command;
     private final Path workingDirectory;
     private final Duration timeout;
@@ -29,14 +29,14 @@ public class ClaudeCliClient {
     private static final String DEFAULT_MODEL = "haiku";
     private static final String ALLOWED_MODELS_HINT = "Allowed Claude CLI models: haiku, sonnet, opus";
 
-    public ClaudeCliClient(ClaudeCliJsonParser parser, String command, Path workingDirectory, Duration timeout) {
+    public ClaudeCliClient(es.com.adakadavra.agent.jarvis.cli.claude.ClaudeCliJsonParser parser, String command, Path workingDirectory, Duration timeout) {
         this.parser = parser;
         this.command = command;
         this.workingDirectory = workingDirectory;
         this.timeout = timeout;
     }
 
-    public ClaudeCliResponse execute(String systemPrompt, String userPrompt, String model) {
+    public es.com.adakadavra.agent.jarvis.cli.claude.ClaudeCliResponse execute(String systemPrompt, String userPrompt, String model) {
         List<String> commandLine = buildPrintCommand(systemPrompt, userPrompt, model);
         String output = executeCommand(commandLine);
         return parser.parseResponse(output, model);
@@ -205,7 +205,7 @@ public class ClaudeCliClient {
                   \"properties\": {
                     \"agentType\": {
                       \"type\": \"string\",
-                      \"enum\": [\"DIRECTOR\", \"SECRETARY\", \"SOCIAL_MEDIA\", \"DEVELOPER\", \"DEVOPS\", \"FRONTEND\"]
+                      \"enum\": [\"JARVIS\", \"SECRETARY\", \"SECURITY\", \"SOCIAL_MEDIA\", \"DEVELOPER\", \"DEVOPS\", \"FRONTEND\"]
                     },
                     \"reasoning\": {
                       \"type\": \"string\"
@@ -217,4 +217,5 @@ public class ClaudeCliClient {
                 """;
     }
 }
+
 

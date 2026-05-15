@@ -1,7 +1,10 @@
 package es.com.adakadavra.agent.jarvis.api;
 
-import es.com.adakadavra.agent.jarvis.agent.DirectorAgent;
+import es.com.adakadavra.agent.jarvis.agent.JarvisAgent;
+import es.com.adakadavra.agent.jarvis.cli.claude.ClaudeCliService;
+import es.com.adakadavra.agent.jarvis.cli.copilot.CopilotCliService;
 import es.com.adakadavra.agent.jarvis.config.ChatClientFactory;
+import es.com.adakadavra.agent.jarvis.config.OllamaModelService;
 import es.com.adakadavra.agent.jarvis.model.AgentRequest;
 import es.com.adakadavra.agent.jarvis.model.AgentResponse;
 import es.com.adakadavra.agent.jarvis.model.ModelProvider;
@@ -15,28 +18,49 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/jarvis")
 public class JarvisController {
 
-    private final DirectorAgent orchestrator;
+    private final JarvisAgent orchestrator;
     private final ChatClientFactory chatClientFactory;
+    private final OllamaModelService ollamaModelService;
+    private final ClaudeCliService claudeCliService;
+    private final CopilotCliService copilotCliService;
+    private final String azureAgentDeployment;
+    private final String anthropicApiModel;
 
-    public JarvisController(DirectorAgent orchestrator, ChatClientFactory chatClientFactory) {
+    public JarvisController(
+            JarvisAgent orchestrator,
+            ChatClientFactory chatClientFactory,
+            OllamaModelService ollamaModelService,
+            ClaudeCliService claudeCliService,
+            CopilotCliService copilotCliService,
+            @org.springframework.beans.factory.annotation.Value("${jarvis.azure.agent-deployment:gpt-35-turbo}") String azureAgentDeployment,
+            @org.springframework.beans.factory.annotation.Value("${spring.ai.anthropic.chat.options.model:claude-sonnet-4-6}") String anthropicApiModel) {
         this.orchestrator = orchestrator;
         this.chatClientFactory = chatClientFactory;
+        this.ollamaModelService = ollamaModelService;
+        this.claudeCliService = claudeCliService;
+        this.copilotCliService = copilotCliService;
+        this.azureAgentDeployment = azureAgentDeployment;
+        this.anthropicApiModel = anthropicApiModel;
     }
 
     @GetMapping("/capabilities")
     public CapabilitiesResponse capabilities() {
         ModelProvider defaultProvider = chatClientFactory.defaultProvider();
-        boolean cliMode = chatClientFactory.usesClaudeCli(defaultProvider);
-        List<String> allowedModels = cliMode
-                ? List.of("haiku", "sonnet", "opus")
-                : List.of("gemma4:latest", "qwen3-coder:30b");
+        ModelProvider apiProvider = resolveApiProvider(defaultProvider);
+        Map<String, ConnectionCapabilities> connections = Map.of(
+                "api", new ConnectionCapabilities(apiLabel(apiProvider), apiModels(apiProvider), apiProvider.name(), false, false),
+                "ollama", new ConnectionCapabilities("Ollama local", ollamaModelService.listModels(), ModelProvider.OLLAMA.name(), false, false),
+                "claude-cli", new ConnectionCapabilities("Claude CLI", claudeCliService.listModels(), ModelProvider.CLAUDE_CLI.name(), true, false),
+                "copilot-cli", new ConnectionCapabilities("Copilot CLI", copilotCliService.listModels(), ModelProvider.COPILOT_CLI.name(), true, true)
+        );
 
-        return new CapabilitiesResponse(defaultProvider.name(), cliMode, allowedModels);
+        return new CapabilitiesResponse(defaultProvider.name(), connections);
     }
 
     @PostMapping("/chat")
@@ -49,6 +73,34 @@ public class JarvisController {
         return orchestrator.stream(request);
     }
 
-    public record CapabilitiesResponse(String defaultProvider, boolean cliMode, List<String> allowedModels) {
+    public record CapabilitiesResponse(String defaultProvider, Map<String, ConnectionCapabilities> connections) {
+    }
+
+    public record ConnectionCapabilities(
+            String label,
+            List<String> models,
+            String provider,
+            boolean heuristicSupported,
+            boolean heuristicRequired) {
+    }
+
+    private ModelProvider resolveApiProvider(ModelProvider defaultProvider) {
+        if (defaultProvider == ModelProvider.AZURE || defaultProvider == ModelProvider.ANTHROPIC) {
+            return defaultProvider;
+        }
+        if (chatClientFactory.isAvailable(ModelProvider.AZURE)) {
+            return ModelProvider.AZURE;
+        }
+        return ModelProvider.ANTHROPIC;
+    }
+
+    private String apiLabel(ModelProvider provider) {
+        return provider == ModelProvider.AZURE ? "API (Azure)" : "API (Anthropic)";
+    }
+
+    private List<String> apiModels(ModelProvider provider) {
+        return provider == ModelProvider.AZURE
+                ? List.of(azureAgentDeployment)
+                : List.of(anthropicApiModel);
     }
 }

@@ -1,12 +1,11 @@
 package es.com.adakadavra.agent.jarvis.messaging;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import es.com.adakadavra.agent.jarvis.agent.DirectorAgent;
+import es.com.adakadavra.agent.jarvis.agent.JarvisAgent;
 import es.com.adakadavra.agent.jarvis.model.AgentRequest;
 import es.com.adakadavra.agent.jarvis.model.AgentResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Async;
@@ -23,17 +22,16 @@ public class TelegramService {
     private static final Logger log = LoggerFactory.getLogger(TelegramService.class);
     private static final int MAX_TELEGRAM_MESSAGE_LENGTH = 4096;
 
-    private final DirectorAgent orchestrator;
-    private final RestClient restClient;
+    private final JarvisAgent orchestrator;
+    private final RestClient restClient = RestClient.builder()
+            .baseUrl("https://api.telegram.org")
+            .build();
 
     @Value("${jarvis.telegram.bot-token:}")
     private String botToken;
 
-    public TelegramService(
-            DirectorAgent orchestrator,
-            @Qualifier("telegramRestClient") RestClient restClient) {
+    public TelegramService(JarvisAgent orchestrator) {
         this.orchestrator = orchestrator;
-        this.restClient = restClient;
     }
 
     @Async
@@ -61,7 +59,7 @@ public class TelegramService {
         try {
             sendChatAction(chatId, "typing");
             AgentResponse response = orchestrator.process(
-                    new AgentRequest(text, "telegram-" + chatId, null, null));
+                    new AgentRequest(text, "telegram-" + chatId, null, null, null, null));
             sendMessage(chatId, response.response());
         } catch (Exception e) {
             log.error("Error processing Telegram message for chat {}", chatId, e);

@@ -1,10 +1,12 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { shareReplay } from 'rxjs/operators';
 import {
   AgentRequest,
   AgentResponse,
   BackendCapabilities,
+  CliProviderStatus,
   CopilotRequest,
   CopilotResponse,
   GoogleAuthUrlResponse,
@@ -15,6 +17,7 @@ import {
 export class JarvisService {
   private readonly base = '/api/jarvis';
   private readonly googleBase = '/api/google';
+  private capabilitiesCache$?: Observable<BackendCapabilities>;
 
   constructor(private http: HttpClient) {}
 
@@ -23,7 +26,12 @@ export class JarvisService {
   }
 
   capabilities(): Observable<BackendCapabilities> {
-    return this.http.get<BackendCapabilities>(`${this.base}/capabilities`);
+    if (!this.capabilitiesCache$) {
+      this.capabilitiesCache$ = this.http
+        .get<BackendCapabilities>(`${this.base}/capabilities`)
+        .pipe(shareReplay({ bufferSize: 1, refCount: false }));
+    }
+    return this.capabilitiesCache$;
   }
 
   googleAuthUrl(conversationId: string): Observable<GoogleAuthUrlResponse> {
@@ -46,6 +54,10 @@ export class JarvisService {
     return this.fetchStream(`${this.base}/copilot/stream`, request);
   }
 
+  copilotProviderStatus(): Observable<CliProviderStatus[]> {
+    return this.http.get<CliProviderStatus[]>(`${this.base}/copilot/providers`);
+  }
+
   stream(request: AgentRequest): Observable<string> {
     return this.fetchStream(`${this.base}/stream`, request);
   }
@@ -61,7 +73,9 @@ export class JarvisService {
         signal: controller.signal,
       }).then(async response => {
         if (!response.ok) {
-          throw new Error(`Streaming request failed with status ${response.status}`);
+          const errorPayload = await response.text();
+          const detail = this.extractBackendErrorMessage(errorPayload);
+          throw new Error(detail || `Streaming request failed with status ${response.status}`);
         }
         if (!response.body) {
           throw new Error('Streaming response has no body');
@@ -110,5 +124,18 @@ export class JarvisService {
 
       return () => controller.abort();
     });
+  }
+
+  private extractBackendErrorMessage(payload: string): string {
+    if (!payload) {
+      return '';
+    }
+
+    try {
+      const parsed = JSON.parse(payload) as { message?: string; error?: string; detail?: string };
+      return parsed.message || parsed.error || parsed.detail || payload;
+    } catch {
+      return payload;
+    }
   }
 }
