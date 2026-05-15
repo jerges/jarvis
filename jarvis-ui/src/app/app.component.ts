@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { JarvisService } from './services/jarvis.service';
 import {
-  AgentType, AppMode, ChatMessage, CliProvider, CliProviderStatus,
+  AgentType, AppMode, AuthUser, ChatMessage, CliProvider, CliProviderStatus,
   ConnectionCapabilities, ConnectionType, Plan, AGENT_META
 } from './models/agent.model';
 
@@ -24,6 +24,9 @@ export class AppComponent implements OnInit {
   loading = false;
   googleConnected = false;
   googleStatusLabel = 'Not connected';
+  isAuthenticated = signal<boolean | null>(null);
+  currentUser = signal<AuthUser | null>(null);
+  loginLoading = false;
 
   messages       = signal<ChatMessage[]>([]);
   plans          = signal<Plan[]>([]);
@@ -75,17 +78,47 @@ export class AppComponent implements OnInit {
   constructor(private readonly jarvis: JarvisService) {}
 
   ngOnInit(): void {
-    this.refreshGoogleStatus();
-    this.refreshCliProviderStatus();
-
-    this.jarvis.capabilities().subscribe({
-      next: capabilities => {
-        this.connectionCapabilities = capabilities.connections;
-        this.syncSelectedModelsWithCapabilities();
-        this.connectionType = this.resolveDefaultConnectionType(capabilities.defaultProvider);
-        this.syncHeuristicModeWithConnection(this.connectionType);
+    this.jarvis.checkAuth().subscribe({
+      next: user => {
+        this.currentUser.set(user);
+        this.isAuthenticated.set(true);
+        this.refreshGoogleStatus();
+        this.refreshCliProviderStatus();
+        this.jarvis.capabilities().subscribe({
+          next: capabilities => {
+            this.connectionCapabilities = capabilities.connections;
+            this.syncSelectedModelsWithCapabilities();
+            this.connectionType = this.resolveDefaultConnectionType(capabilities.defaultProvider);
+            this.syncHeuristicModeWithConnection(this.connectionType);
+          },
+          error: () => {}
+        });
       },
-      error: () => {}
+      error: () => {
+        this.isAuthenticated.set(false);
+      }
+    });
+  }
+
+  login(): void {
+    this.loginLoading = true;
+    this.jarvis.getLoginUrl().subscribe({
+      next: ({ loginUrl }) => { window.location.href = loginUrl; },
+      error: () => { this.loginLoading = false; }
+    });
+  }
+
+  logout(): void {
+    this.jarvis.logout().subscribe({
+      next: () => {
+        this.isAuthenticated.set(false);
+        this.currentUser.set(null);
+        this.messages.set([]);
+      },
+      error: () => {
+        this.isAuthenticated.set(false);
+        this.currentUser.set(null);
+      }
     });
   }
 
