@@ -8,7 +8,8 @@ import anthropic
 
 _secrets_client = None
 
-ORCHESTRATOR_MODEL = "claude-haiku-4-5-20251001"  # routing-only: classification task, no complex reasoning needed
+ORCHESTRATOR_MODEL = "claude-haiku-4-5-20251001"          # routing: cheap classification, ~20x less than Opus
+ORCHESTRATOR_FALLBACK_MODEL = "claude-sonnet-4-6-20250514"  # fallback if Haiku fails or returns invalid JSON
 AGENT_MODEL = "claude-sonnet-4-6-20250514"
 
 

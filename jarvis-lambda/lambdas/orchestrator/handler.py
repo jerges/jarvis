@@ -13,7 +13,7 @@ sys.path.insert(0, "/opt/python")
 
 import boto3
 
-from shared.anthropic_client import chat, ORCHESTRATOR_MODEL, AGENT_MODEL
+from shared.anthropic_client import chat, ORCHESTRATOR_MODEL, ORCHESTRATOR_FALLBACK_MODEL, AGENT_MODEL
 from shared.conversation import get_history, save_message
 from shared.models import AgentType, RoutingDecision
 from shared.whatsapp import send_message
@@ -80,22 +80,24 @@ def _route(message: str, history: list[dict]) -> RoutingDecision:
     user_content = f"{context_snippet}Mensaje a clasificar: {message}"
     messages = [{"role": "user", "content": user_content}]
 
-    raw, _ = chat(
-        system=ROUTING_SYSTEM,
-        messages=messages,
-        model=ORCHESTRATOR_MODEL,
-        max_tokens=256,
-    )
+    for model in (ORCHESTRATOR_MODEL, ORCHESTRATOR_FALLBACK_MODEL):
+        try:
+            raw, _ = chat(
+                system=ROUTING_SYSTEM,
+                messages=messages,
+                model=model,
+                max_tokens=256,
+            )
+            data = json.loads(raw.strip())
+            agent_type = AgentType(data["agent"])
+            reasoning = data.get("reasoning", "")
+            if model != ORCHESTRATOR_MODEL:
+                print(f"Routing fallback: used {model} after primary failed")
+            return RoutingDecision(agent_type=agent_type, reasoning=reasoning)
+        except Exception as e:
+            print(f"Routing failed with {model}: {e}")
 
-    try:
-        data = json.loads(raw.strip())
-        agent_type = AgentType(data["agent"])
-        reasoning = data.get("reasoning", "")
-    except Exception:
-        agent_type = AgentType.JARVIS
-        reasoning = "Fallback a respuesta general"
-
-    return RoutingDecision(agent_type=agent_type, reasoning=reasoning)
+    return RoutingDecision(agent_type=AgentType.JARVIS, reasoning="Fallback a respuesta general")
 
 
 def _respond_directly(message: str, history: list[dict]) -> str:
